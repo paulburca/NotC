@@ -26,21 +26,17 @@ Definition Env := string -> Val.
 Definition env : Env := fun x => undecl.
 Compute env "x".
 
-Definition update (env : Env) (str : string) (v : Val) : Env :=
-  fun str' =>
-    if()
-
 
 Inductive AExp :=
 | avar: string -> AExp
-| anum: nat -> AExp
+| anum: ErrorNat -> AExp
 | aplus: AExp -> AExp -> AExp
 | asub: AExp -> AExp -> AExp
 | amul: AExp -> AExp -> AExp
 | adiv: AExp -> AExp -> AExp
 | amod: AExp -> AExp -> AExp.
 
-Coercion anum : nat >-> AExp.
+Coercion anum : ErrorNat >-> AExp.
 Coercion avar : string >-> AExp.
 Notation "A +' B" := (aplus A B) (at level 48).
 Notation "A -' B" := (asub A B) (at level 48).
@@ -95,10 +91,9 @@ Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
 Notation "'If' ( C ) 'then' { A } 'else' { B } 'end'" := (ifthenelse C A B) (at level 59).
 Notation "'If' ( C ) 'then' { A } 'end'" := (ifthen C A) (at level 59).
-Notation " switch( A ) {}" := ()(at level 59).
 Notation "'while'' ( A ) { B } " := (while A B) (at level 91).
 Notation "'do' { A } while ( A )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
 Notation "'int' A := B" := (def_nat A B)(at level 50).
 Notation "'boolean' A := B" := (def_bool A B)(at level 50).
-Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
+Notation " switch( A ) {}" := ()(at level 59).
