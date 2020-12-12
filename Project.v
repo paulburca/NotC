@@ -1,24 +1,35 @@
 Require Import Strings.String.
 Local Open Scope string_scope.
 
+Inductive ErrorNat :=
+  | error_nat : ErrorNat
+  | num : nat -> ErrorNat.
+
+Inductive ErrorBool :=
+  | error_bool : ErrorBool
+  | boolean : bool -> ErrorBool.
+
+Coercion num: nat >-> ErrorNat.
+Coercion boolean: bool >-> ErrorBool.
+
 Inductive Val :=
 | undecl: Val
 | unassign: Val
-| num: nat -> Val
-| boolean: bool -> Val
+| default: Val
+| number: ErrorNat -> Val
+| bool: ErrorBool -> Val
 | str: string -> Val
 .
-Coercion num: nat >-> Val.
-Coercion boolean: bool >-> Val. 
 
 Scheme Equality for Val.
-Definition Env := string -> Val
+Definition Env := string -> Val.
 Definition env : Env := fun x => undecl.
+Compute env "x".
 
 Definition update (env : Env) (str : string) (v : Val) : Env :=
   fun str' =>
-    if(string_dec str str')
-.
+    if()
+
 
 Inductive AExp :=
 | avar: string -> AExp
@@ -48,12 +59,17 @@ Inductive BExp :=
 | bor : BExp -> BExp -> BExp
 | bxor : BExp -> BExp -> BExp
 | bxand : BExp -> BExp -> BExp
-| strcmp : string -> string -> BExp.
+| strcmp : string -> string -> BExp
+| blet : AExp -> AExp -> BExp
+| bget : AExp -> AExp -> BExp
+.
 
 
 Coercion bvar: string >-> BExp.
-Notation "A <=' B" := (blessthan A B) (at level 53).
-Notation "A >=' B" := (bgreaterthan A B) (at level 53).
+Notation "A <' B" := (blessthan A B) (at level 53).
+Notation "A >' B" := (bgreaterthan A B) (at level 53).
+Notation "A <' B" := (blet A B) (at level 53).
+Notation "A >' B" := (bget A B) (at level 53).
 Notation "` A " := (bnot A) (at level 40).
 Notation "A &&' B" := (band A B) (at level 55).
 Notation "A ||' B" := (bor A B) (at level 55).
