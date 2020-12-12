@@ -2,17 +2,18 @@ Require Import Strings.String.
 Local Open Scope string_scope.
 
 Inductive Val :=
-|undecl: Val
-|unassign: Val
-|num: nat -> Val
-|boolean: bool -> Val.
+| undecl: Val
+| unassign: Val
+| num: nat -> Val
+| boolean: bool -> Val
+| str: string -> Val
 .
 Coercion num: nat >-> Val.
 Coercion boolean: bool >-> Val. 
 
 Scheme Equality for Val.
 Definition Env := string -> Val
-Definition env : Env := fun x => .
+Definition env : Env := fun x => undecl.
 
 Definition update (env : Env) (str : string) (v : Val) : Env :=
   fun str' =>
@@ -44,7 +45,10 @@ Inductive BExp :=
 | bnot : BExp -> BExp
 | band : BExp -> BExp -> BExp
 | bgreaterthan: AExp -> AExp -> BExp
-| bor : BExp -> BExp -> BExp.
+| bor : BExp -> BExp -> BExp
+| bxor : BExp -> BExp -> Bexp
+| bxand : BExp -> BExp -> Bexp
+.
 
 Coercion bvar: string >-> BExp.
 Notation "A <=' B" := (blessthan A B) (at level 53).
@@ -60,6 +64,7 @@ Inductive Stmt :=
 | bassignment : string -> BExp -> Stmt
 | sequence : Stmt -> Stmt -> Stmt
 | while : BExp -> Stmt -> Stmt
+| dowhile : Stmt -> BExp -> Stmt
 | ifthen : BExp -> Stmt -> Stmt
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
@@ -70,7 +75,9 @@ Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
 Notation "'If' ( C ) 'then' { A } 'else' { B } 'end'" := (ifthenelse C A B) (at level 59).
 Notation "'If' ( C ) 'then' { A } 'end'" := (ifthen C A) (at level 59).
+Notation " switch( A ) {}" := ()(at level 59).
 Notation "'while'' ( A ) { B } " := (while A B) (at level 91).
+Notation "'do' { A } while ( A )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
 Notation "'int' A := B" := (def_nat A B)(at level 50).
 Notation "'boolean' A := B" := (def_bool A B)(at level 50).
