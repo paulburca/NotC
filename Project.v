@@ -123,4 +123,4 @@ Notation "'do' { A } 'while' ( B )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
 Notation "'int' A := B" := (def_nat A B)(at level 50).
 Notation "'boolean' A := B" := (def_bool A B)(at level 50).
-Notation " switch( A ) {}" := ()(at level 59).
+Notation " switch( A ) {'case'(nr): { S } 'default' : {S'}}" := ()(at level 59).
