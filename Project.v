@@ -46,9 +46,10 @@ Inductive BExp :=
 | band : BExp -> BExp -> BExp
 | bgreaterthan: AExp -> AExp -> BExp
 | bor : BExp -> BExp -> BExp
-| bxor : BExp -> BExp -> Bexp
-| bxand : BExp -> BExp -> Bexp
-.
+| bxor : BExp -> BExp -> BExp
+| bxand : BExp -> BExp -> BExp
+| strcmp : string -> string -> BExp.
+
 
 Coercion bvar: string >-> BExp.
 Notation "A <=' B" := (blessthan A B) (at level 53).
@@ -68,7 +69,11 @@ Inductive Stmt :=
 | ifthen : BExp -> Stmt -> Stmt
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
-| forcontent : BExp -> Stmt -> Stmt -> Stmt.
+| forcontent : BExp -> Stmt -> Stmt -> Stmt
+| strcat : string -> string -> Stmt.
+| strcpy : string -> string -> Stmt.
+
+.
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
