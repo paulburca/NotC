@@ -1,22 +1,34 @@
 Require Import Strings.String.
+Require Import Coq.ZArith.BinInt.
 Local Open Scope string_scope.
+Local Open Scope Z_scope.
 
 Inductive ErrorNat :=
   | error_nat : ErrorNat
   | num : nat -> ErrorNat.
 
+Inductive ErrorInt :=
+  | error_int : ErrorInt
+  | nr : Z -> ErrorInt.
+
 Inductive ErrorBool :=
   | error_bool : ErrorBool
   | boolean : bool -> ErrorBool.
 
+Inductive ErrorString :=
+  | error_string : ErrorString
+  | strval : string -> ErrorString.
+
 Coercion num: nat >-> ErrorNat.
 Coercion boolean: bool >-> ErrorBool.
+Coercion nr : Z >-> ErrorInt.
 
 Inductive Val :=
 | undecl: Val
 | unassign: Val
 | default: Val
 | number: ErrorNat -> Val
+| integer : ErrorInt -> Val
 | bool: ErrorBool -> Val
 | str: string -> Val
 .
@@ -64,8 +76,8 @@ Inductive BExp :=
 Coercion bvar: string >-> BExp.
 Notation "A <' B" := (blessthan A B) (at level 53).
 Notation "A >' B" := (bgreaterthan A B) (at level 53).
-Notation "A <' B" := (blet A B) (at level 53).
-Notation "A >' B" := (bget A B) (at level 53).
+Notation "A <=' B" := (blet A B) (at level 53).
+Notation "A >=' B" := (bget A B) (at level 53).
 Notation "` A " := (bnot A) (at level 40).
 Notation "A &&' B" := (band A B) (at level 55).
 Notation "A ||' B" := (bor A B) (at level 55).
@@ -92,7 +104,7 @@ Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
 Notation "'If' ( C ) 'then' { A } 'else' { B } 'end'" := (ifthenelse C A B) (at level 59).
 Notation "'If' ( C ) 'then' { A } 'end'" := (ifthen C A) (at level 59).
 Notation "'while'' ( A ) { B } " := (while A B) (at level 91).
-Notation "'do' { A } while ( A )" := (dowhile A B) (at level 91).
+Notation "'do' { A } while ( B )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
 Notation "'int' A := B" := (def_nat A B)(at level 50).
 Notation "'boolean' A := B" := (def_bool A B)(at level 50).
