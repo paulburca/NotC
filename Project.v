@@ -1,6 +1,8 @@
 Require Import Strings.String.
 Require Import Coq.ZArith.BinInt.
+Require Import Lists.List.
 Local Open Scope string_scope.
+Local Open Scope list_scope.
 Local Open Scope Z_scope.
 
 Inductive ErrorNat :=
@@ -42,19 +44,25 @@ Compute env "x".
 Inductive AExp :=
 | avar: string -> AExp
 | anum: ErrorNat -> AExp
+| aint: ErrorInt -> AExp
 | aplus: AExp -> AExp -> AExp
 | asub: AExp -> AExp -> AExp
 | amul: AExp -> AExp -> AExp
 | adiv: AExp -> AExp -> AExp
-| amod: AExp -> AExp -> AExp.
+| amod: AExp -> AExp -> AExp
+| apow: AExp -> AExp -> AExp
+.
 
 Coercion anum : ErrorNat >-> AExp.
 Coercion avar : string >-> AExp.
+Coercion aint : ErrorInt >-> AExp.
+
 Notation "A +' B" := (aplus A B) (at level 48).
 Notation "A -' B" := (asub A B) (at level 48).
 Notation "A *' B" := (amul A B) (at level 46).
 Notation "A /' B" := (adiv A B) (at level 46).
 Notation "A %' B" := (amod A B) (at level 46).
+Notation "A ^' B" := (apow A B) (at level 46).
 
 Inductive BExp :=
 | btrue : BExp
@@ -70,6 +78,8 @@ Inductive BExp :=
 | strcmp : string -> string -> BExp
 | blet : AExp -> AExp -> BExp
 | bget : AExp -> AExp -> BExp
+| beq : AExp -> AExp -> BExp
+| bneq : AExp -> AExp -> BExp
 .
 
 
@@ -81,6 +91,10 @@ Notation "A >=' B" := (bget A B) (at level 53).
 Notation "` A " := (bnot A) (at level 40).
 Notation "A &&' B" := (band A B) (at level 55).
 Notation "A ||' B" := (bor A B) (at level 55).
+Notation "A 'xor'' B" := (bxor A B) (at level 55).
+Notation "A 'xand'' B" := (bxand A B) (at level 55).
+Notation "A ==' B" := (beq A B) (at level 53).
+Notation "A !=' B" := (bneq A B) (at level 53).
 
 Inductive Stmt :=
 | def_nat : string -> AExp ->Stmt
@@ -97,6 +111,7 @@ Inductive Stmt :=
 | strcat : string -> string -> Stmt
 | strcpy : string -> string -> Stmt.
 
+Definition cases: nat -> Stmt.
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
@@ -104,7 +119,7 @@ Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
 Notation "'If' ( C ) 'then' { A } 'else' { B } 'end'" := (ifthenelse C A B) (at level 59).
 Notation "'If' ( C ) 'then' { A } 'end'" := (ifthen C A) (at level 59).
 Notation "'while'' ( A ) { B } " := (while A B) (at level 91).
-Notation "'do' { A } while ( B )" := (dowhile A B) (at level 91).
+Notation "'do' { A } 'while' ( B )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
 Notation "'int' A := B" := (def_nat A B)(at level 50).
 Notation "'boolean' A := B" := (def_bool A B)(at level 50).
