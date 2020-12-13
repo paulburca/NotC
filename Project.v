@@ -34,9 +34,10 @@ Inductive Val :=
 | integer : ErrorInt -> Val
 | bool: ErrorBool -> Val
 | str: string -> Val
-.
+| vector : string -> nat -> list Val -> Val
+| ptr : Val -> Val.
 
-Scheme Equality for Val.
+
 Definition Env := string -> Val.
 Definition env : Env := fun x => undecl.
 Compute env "x".
@@ -123,6 +124,8 @@ Inductive Stmt :=
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
 | forcontent : BExp -> Stmt -> Stmt -> Stmt
+| break
+| continue 
 | switch: AExp -> list cases -> Stmt
 with cases:=
 | def: Stmt -> cases
@@ -150,11 +153,11 @@ Notation "'string' A := B" := (def_string A B)(at level 50).
 Notation "'default' : { A }" := (def A) (at level 92).
 Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
-Notation "'switch'' ( A ) : { B1 B2 .. Bn  }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
+Notation "'switch'' ( A ) : { B1 B2 .. Bn }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
 
-Notation "'func' A ( ) : { C }" := (funcs A nil C )(at level 20).
-Notation "'func' A ( B ) : { C }" := (funcs A (cons B nil)  C )(at level 20).
-Notation "'func' A ( B1 B2 .. Bn ) : { C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
+Notation "'func'' A (( B1 ; B2 ; .. ; Bn )) : { C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
+Notation "A [ B ] = { C1 C2 .. Cn }" := (vector A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute func "test" ("text1" "text2") : {If ( 1=='1 ) then { "text1" :s:= string( "test" ) } end' }.
+(*Compute "ASD"[50] = { 1 2 3 }.*)
+Compute func' "test" (( "text1" ; "text2" )) : { If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' }.
