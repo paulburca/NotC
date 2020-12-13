@@ -155,9 +155,9 @@ Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
 Notation "'switch'' ( A ) : { B1 B2 .. Bn }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
 
-Notation "'func'' A (( B1 ; B2 ; .. ; Bn )) : { C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
+Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
 Notation "A [ B ] = { C1 C2 .. Cn }" := (vector A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
 (*Compute "ASD"[50] = { 1 2 3 }.*)
-Compute func' "test" (( "text1" ; "text2" )) : { If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' }.
+Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
