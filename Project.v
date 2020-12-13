@@ -115,6 +115,7 @@ Inductive Stmt :=
 | def_string : string -> ErrorString -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
+| sassignment : string -> STREXP -> Stmt
 | sequence : Stmt -> Stmt -> Stmt
 | while : BExp -> Stmt -> Stmt
 | dowhile : Stmt -> BExp -> Stmt
@@ -132,8 +133,10 @@ Inductive func :=
 | funcMain : Stmt -> func
 | funcs : string -> list string -> Stmt -> func.
 
+
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
+Notation "X :s:= A" := (sassignment X A ) (at level 50).
 Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
 Notation "'If' ( C ) 'then' { A } 'else' { B } 'end''" := (ifthenelse C A B) (at level 59).
 Notation "'If' ( C ) 'then' { A } 'end''" := (ifthen C A) (at level 59).
@@ -149,8 +152,9 @@ Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
 Notation "'switch'' ( A ) : { B1 B2 .. Bn  }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
 
-Notation "'func' A ( B1 B2 .. Bn ) { C }" := (func A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
+Notation "'func' A ( ) : { C }" := (funcs A nil C )(at level 20).
+Notation "'func' A ( B ) : { C }" := (funcs A (cons B nil)  C )(at level 20).
+Notation "'func' A ( B1 B2 .. Bn ) : { C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute func "test" ("text1" "text2"){ If(1=='1)then{"text1" ::= String("test")}end'}.
-
+Compute func "test" ("text1" "text2") : {If ( 1=='1 ) then { "text1" :s:= string( "test" ) } end' }.
