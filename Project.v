@@ -127,10 +127,10 @@ with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
 
-Notation "'default' : { S }" := (def S) (at level 92).
-Notation "'case' ( N ) : { S }" := (basic N S) (at level 92).
-Notation "'switch'' ( N ) : { C1 } " := (switch N (cons C1 nil)) (at level 93).
-Notation "'switch'' ( N ) : { C1 C2 .. Cn  }" := (switch N (cons C1 (cons C2 .. (cons Cn nil) ..))) (at level 93).
+
+Inductive func := 
+| funcMain : Stmt -> func
+| funcs : string -> list string -> Stmt -> func.
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
@@ -144,5 +144,13 @@ Notation "'nat' A := B" := (def_nat A B)(at level 50).
 Notation "'bool' A := B" := (def_bool A B)(at level 50).
 Notation "'int' A := B" := (def_int A B)(at level 50).
 Notation "'string' A := B" := (def_string A B)(at level 50).
+Notation "'default' : { A }" := (def A) (at level 92).
+Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
+Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
+Notation "'switch'' ( A ) : { B1 B2 .. Bn  }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
+
+Notation "'func' A ( B1 B2 .. Bn ) { C }" := (func A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
+Compute func sarmale ("Aloha" "123"){ If(1=='1)then{"Aloha" ::= String("RIP")}end'}.
+
