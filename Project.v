@@ -152,5 +152,5 @@ Notation "'switch'' ( A ) : { B1 B2 .. Bn  }" := (switch A (cons B1 (cons B2 .. 
 Notation "'func' A ( B1 B2 .. Bn ) { C }" := (func A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute func sarmale ("Aloha" "123"){ If(1=='1)then{"Aloha" ::= String("RIP")}end'}.
+Compute func "test" ("text1" "text2"){ If(1=='1)then{"text1" ::= String("test")}end'}.
 
