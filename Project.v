@@ -24,6 +24,7 @@ Inductive ErrorString :=
 Coercion num: nat >-> ErrorNat.
 Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
+Notation "string( S )" := (strval S).
 
 Inductive Val :=
 | undecl: Val
@@ -68,6 +69,7 @@ Inductive BExp :=
 | btrue : BExp
 | bfalse : BExp
 | bvar : string -> BExp
+| bval : ErrorBool -> BExp
 | blessthan : AExp -> AExp -> BExp
 | bnot : BExp -> BExp
 | band : BExp -> BExp -> BExp
@@ -82,8 +84,10 @@ Inductive BExp :=
 | bneq : AExp -> AExp -> BExp
 .
 
-
 Coercion bvar: string >-> BExp.
+Coercion bval: ErrorBool >-> BExp.
+
+
 Notation "A <' B" := (blessthan A B) (at level 53).
 Notation "A >' B" := (bgreaterthan A B) (at level 53).
 Notation "A <=' B" := (blet A B) (at level 53).
@@ -96,9 +100,19 @@ Notation "A 'xand'' B" := (bxand A B) (at level 55).
 Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
 
+Inductive STREXP := 
+| sval : ErrorString -> STREXP
+| strcat : ErrorString -> ErrorString -> STREXP
+| strcpy : ErrorString -> ErrorString -> STREXP
+| snat : ErrorString -> STREXP.
+
+Coercion sval: ErrorString >-> STREXP.
+
 Inductive Stmt :=
 | def_nat : string -> AExp ->Stmt
-| def_bool : string -> BExp ->Stmt
+| def_bool : string -> BExp -> Stmt
+| def_int : string -> AExp -> Stmt
+| def_string : string -> ErrorString -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
 | sequence : Stmt -> Stmt -> Stmt
@@ -108,19 +122,27 @@ Inductive Stmt :=
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
 | forcontent : BExp -> Stmt -> Stmt -> Stmt
-| strcat : string -> string -> Stmt
-| strcpy : string -> string -> Stmt.
+| switch: AExp -> list cases -> Stmt
+with cases:=
+| def: Stmt -> cases
+| basic : nat -> Stmt -> cases.
 
-Definition cases: nat -> Stmt.
+Notation "'default' : { S }" := (def S) (at level 92).
+Notation "'case' ( N ) : { S }" := (basic N S) (at level 92).
+Notation "'switch'' ( N ) : { C1 } " := (switch N (cons C1 nil)) (at level 93).
+Notation "'switch'' ( N ) : { C1 C2 .. Cn  }" := (switch N (cons C1 (cons C2 .. (cons Cn nil) ..))) (at level 93).
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "S1 ;; S2" := (sequence S1 S2) (at level 92).
-Notation "'If' ( C ) 'then' { A } 'else' { B } 'end'" := (ifthenelse C A B) (at level 59).
-Notation "'If' ( C ) 'then' { A } 'end'" := (ifthen C A) (at level 59).
+Notation "'If' ( C ) 'then' { A } 'else' { B } 'end''" := (ifthenelse C A B) (at level 59).
+Notation "'If' ( C ) 'then' { A } 'end''" := (ifthen C A) (at level 59).
 Notation "'while'' ( A ) { B } " := (while A B) (at level 91).
 Notation "'do' { A } 'while' ( B )" := (dowhile A B) (at level 91).
 Notation "'for' ( A ; B ; C ) { D }" := (For A B C D) (at level 91).
-Notation "'int' A := B" := (def_nat A B)(at level 50).
-Notation "'boolean' A := B" := (def_bool A B)(at level 50).
-Notation " switch( A ) {'case'(nr): { S } 'default' : {S'}}" := ()(at level 59).
+Notation "'nat' A := B" := (def_nat A B)(at level 50).
+Notation "'bool' A := B" := (def_bool A B)(at level 50).
+Notation "'int' A := B" := (def_int A B)(at level 50).
+Notation "'string' A := B" := (def_string A B)(at level 50).
+
+Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
