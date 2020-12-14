@@ -7,7 +7,7 @@ Local Open Scope Z_scope.
 
 Inductive ErrorNat :=
   | error_nat : ErrorNat
-  | num : nat -> ErrorNat.
+  | num :  nat -> ErrorNat.
 
 Inductive ErrorInt :=
   | error_int : ErrorInt
@@ -26,7 +26,9 @@ Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
 Coercion num : nat >-> ErrorNat.
 Notation "string( S )" := (strval S).
-
+Notation "nat( N )" := (num N).
+Notation "int( I )" := (nr I).
+Notation "bool( B )" := (boolean B).
 
 Inductive Val :=
 | undecl: Val
@@ -40,10 +42,10 @@ Inductive Val :=
 | ptr: ErrorString -> Val
 with vect :=
 | error_vect: vect
-| vector_int : Z -> list Z -> vect
-| vector_nat : Z -> list Z -> vect
-| vector_bool : Z -> (list bool) -> vect
-| vector_str : Z -> list string -> vect
+| vector_int : Z -> list ErrorInt -> vect
+| vector_nat : Z -> list ErrorNat -> vect
+| vector_bool : Z -> list ErrorBool -> vect
+| vector_str : Z -> list ErrorString -> vect
 .
 
 Coercion number: ErrorNat >-> Val.
@@ -191,10 +193,10 @@ Notation "'(string)' { A }" := (to_string A)( at level 35).
 Notation "'func'' main():{ C } 'end''" := (funcMain C )(at level 20).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
 Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 20).
-Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
-Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
-Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
-Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
+Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons int(C1) (cons int(C2) .. (cons int(Cn) nil) ..) ) ) )(at level 50).
+Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
+Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
+Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons string(C1) (cons string(C2) .. (cons string(Cn) nil) ..) ) ) )(at level 50).
 
 Compute switch' (5) : {case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
 Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
