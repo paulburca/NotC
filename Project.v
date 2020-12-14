@@ -113,14 +113,17 @@ Notation "A 'xor'' B" := (bxor A B) (at level 55).
 Notation "A 'xand'' B" := (bxand A B) (at level 55).
 Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
+Notation "strcmp( A ; B )" := (strcmp A B) (at level 53).
 
 Inductive STREXP := 
-| sval : ErrorString -> STREXP
+| svar : ErrorString -> STREXP
+| sconst: string -> STREXP
 | strcat : ErrorString -> ErrorString -> STREXP
 | strcpy : ErrorString -> ErrorString -> STREXP
-| snat : ErrorString -> STREXP.
+.
 
-Coercion sval: ErrorString >-> STREXP.
+Coercion svar: ErrorString >-> STREXP.
+Coercion sconst: string >-> STREXP.
 
 Inductive func := 
 | funcMain : Stmt -> func
@@ -142,8 +145,8 @@ with Stmt :=
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
 | forcontent : BExp -> Stmt -> Stmt -> Stmt
 | get_func : string -> list string -> Stmt
-| break
-| continue 
+| break : Stmt
+| continue  : Stmt
 | switch: AExp -> list cases -> Stmt
 | to_nat: Val -> Stmt
 | to_int: Val -> Stmt
