@@ -13,7 +13,7 @@ Triviale:
 
 Netriviale:
 - variabile locale + globale
-- tipuri suplimentare de date (string, int, char,...)
+- tipuri suplimentare de date (string, int}
 - cast-uri
 - xor, xand 
 - do{stmt} while(conditie)
