@@ -5,7 +5,6 @@ Local Open Scope string_scope.
 Local Open Scope list_scope.
 Local Open Scope Z_scope.
 
-
 Inductive ErrorNat :=
   | error_nat : ErrorNat
   | num : nat -> ErrorNat.
@@ -49,21 +48,20 @@ Inductive Val :=
 | default: Val
 | number: ErrorNat -> Val
 | integer : ErrorInt -> Val
-| bool: ErrorBool -> Val
-| str: ErrorString -> Val
-| vectors : vect -> Val
-| ptr : Val -> Val
-with vect :=
+| bol: ErrorBool -> Val
+| str: ErrorString -> Val.
+
+Inductive vect :=
 | error_vect: vect
 | vector_int : string -> nat -> list Z -> vect
 | vector_nat : string -> nat -> list Z -> vect
-| vector_bool : string -> nat -> list bool -> vect
+| vector_bool : string -> nat -> (list bool) -> vect
 | vector_str : string -> nat -> list string -> vect
 .
 
 Coercion number: ErrorNat >-> Val.
 Coercion integer: ErrorInt >-> Val.
-Coercion bool: ErrorBool >-> Val.
+Coercion bol: ErrorBool >-> Val.
 Coercion str : ErrorString >-> Val.
 
 Definition Env := string -> Val.
@@ -196,7 +194,7 @@ Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := (vector_bool A B (cons C1 (cons C2 
 Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := (vector_str A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute "ASD"[50]i={ 1 ; 2 ; 3 }.
+Compute "ASD"[50]i={ -1 ; 2 ; -3 }.
 Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
 Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
