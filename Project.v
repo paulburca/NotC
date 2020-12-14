@@ -187,6 +187,7 @@ Notation "'(bool)' { A }" := (to_bool A)( at level 35).
 Notation "'(string)' { A }" := (to_string A)( at level 35).
 Notation "'func'' main():{ C } 'end''" := (funcMain C )(at level 20).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
+Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 20).
 Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
 Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
 Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
@@ -199,3 +200,9 @@ Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
 Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' } end'.
 Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
+Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end'} end'.
+
+
+
+
+
