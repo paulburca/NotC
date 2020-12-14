@@ -39,13 +39,13 @@ Inductive Val :=
 | bol: ErrorBool -> Val
 | str: ErrorString -> Val
 | vector: vect -> Val
-| ptr: ErrorString -> Val
+| ptr: string -> Val
 with vect :=
 | error_vect: vect
-| vector_int : Z -> list ErrorInt -> vect
-| vector_nat : Z -> list ErrorNat -> vect
-| vector_bool : Z -> list ErrorBool -> vect
-| vector_str : Z -> list ErrorString -> vect
+| vector_int : nat -> list ErrorInt -> vect
+| vector_nat : nat -> list ErrorNat -> vect
+| vector_bool : nat -> list ErrorBool -> vect
+| vector_str : nat -> list ErrorString -> vect
 .
 
 Coercion number: ErrorNat >-> Val.
@@ -115,7 +115,7 @@ Notation "A 'xor'' B" := (bxor A B) (at level 55).
 Notation "A 'xand'' B" := (bxand A B) (at level 55).
 Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
-Notation "strcmp( A ; B )" := (strcmp A B) (at level 53).
+Notation "strcmp( A ; B )" := (strcmp A B) (at level 52).
 
 Inductive STREXP := 
 | svar : ErrorString -> STREXP
@@ -123,6 +123,9 @@ Inductive STREXP :=
 | strcat : ErrorString -> ErrorString -> STREXP
 | strcpy : ErrorString -> ErrorString -> STREXP
 .
+
+Notation "strcat( A , B )" := (strcat A B)(at level 52).
+Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 
 Coercion svar: ErrorString >-> STREXP.
 Coercion sconst: string >-> STREXP.
@@ -134,8 +137,9 @@ with Stmt :=
 | def_nat : string -> AExp ->Stmt
 | def_bool : string -> BExp -> Stmt
 | def_int : string -> AExp -> Stmt
-| def_string : string -> ErrorString -> Stmt
+| def_string : string -> STREXP -> Stmt
 | def_vector : string -> vect -> Stmt
+| get_vval : vect -> nat -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
 | sassignment : string -> STREXP -> Stmt
