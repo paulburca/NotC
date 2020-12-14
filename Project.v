@@ -21,27 +21,12 @@ Inductive ErrorString :=
   | error_string : ErrorString
   | strval : string -> ErrorString.
 
-Coercion num: nat >-> ErrorNat.
+
 Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
 Notation "string( S )" := (strval S).
-(*
-Definition list_nat := list nat.
-Definition list_Z := list Z.
-Definition list_string := list string.
-Definition list_bool := list bool.
+Notation "nat( n )" := ( num n).
 
-Inductive lists:=
-| lnat: list_nat -> lists
-| lint: list_Z -> lists
-| lstr: list_string -> lists
-| lbool: list_bool -> lists.
-
-Coercion lnat: list_nat >-> lists.
-Coercion lint: list_Z >-> lists.
-Coercion lstr: list_string >-> lists.
-Coercion lbool: list_bool >-> lists.
-*)
 Inductive Val :=
 | undecl: Val
 | unassign: Val
@@ -49,14 +34,14 @@ Inductive Val :=
 | number: ErrorNat -> Val
 | integer : ErrorInt -> Val
 | bol: ErrorBool -> Val
-| str: ErrorString -> Val.
-
-Inductive vect :=
+| str: ErrorString -> Val
+| vector: vect -> Val
+with vect :=
 | error_vect: vect
-| vector_int : string -> nat -> list Z -> vect
-| vector_nat : string -> nat -> list Z -> vect
-| vector_bool : string -> nat -> (list bool) -> vect
-| vector_str : string -> nat -> list string -> vect
+| vector_int : Z -> list Z -> vect
+| vector_nat : Z -> list Z -> vect
+| vector_bool : Z -> (list bool) -> vect
+| vector_str : Z -> list string -> vect
 .
 
 Coercion number: ErrorNat >-> Val.
@@ -133,11 +118,15 @@ Inductive STREXP :=
 
 Coercion sval: ErrorString >-> STREXP.
 
-Inductive Stmt :=
+Inductive func := 
+| funcMain : Stmt -> func
+| funcs : string -> list string -> Stmt -> func
+with Stmt :=
 | def_nat : string -> AExp ->Stmt
 | def_bool : string -> BExp -> Stmt
 | def_int : string -> AExp -> Stmt
 | def_string : string -> ErrorString -> Stmt
+| def_vector : string -> vect -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
 | sassignment : string -> STREXP -> Stmt
@@ -160,10 +149,10 @@ with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
 
+Inductive Lang :=
+| functions : func -> Lang 
+| glob_decl : Env -> Lang.
 
-Inductive func := 
-| funcMain : Stmt -> func
-| funcs : string -> list string -> Stmt -> func.
 
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
@@ -187,15 +176,17 @@ Notation "'(int)' { A }" := (to_int A)( at level 35).
 Notation "'(nat)' { A }" := (to_nat A)( at level 35).
 Notation "'(bool)' { A }" := (to_bool A)( at level 35).
 Notation "'(string)' { A }" := (to_string A)( at level 35).
+Notation "'func'' main():{ C } 'end''" := (funcMain C )(at level 20).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
-Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := (vector_int A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
-Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := (vector_nat A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
-Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := (vector_bool A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
-Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := (vector_str A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
+Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
+Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
+Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
+Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons C1 (cons C2 .. (cons Cn nil) ..) ) ) )(at level 50).
 
-Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute "ASD"[50]i={ -1 ; 2 ; -3 }.
+Compute switch' (5) : {case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
+Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
 Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
 Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
+Compute main():
 Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
