@@ -5,6 +5,7 @@ Local Open Scope string_scope.
 Local Open Scope list_scope.
 Local Open Scope Z_scope.
 
+
 Inductive ErrorNat :=
   | error_nat : ErrorNat
   | num : nat -> ErrorNat.
@@ -25,7 +26,23 @@ Coercion num: nat >-> ErrorNat.
 Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
 Notation "string( S )" := (strval S).
+(*
+Definition list_nat := list nat.
+Definition list_Z := list Z.
+Definition list_string := list string.
+Definition list_bool := list bool.
 
+Inductive lists:=
+| lnat: list_nat -> lists
+| lint: list_Z -> lists
+| lstr: list_string -> lists
+| lbool: list_bool -> lists.
+
+Coercion lnat: list_nat >-> lists.
+Coercion lint: list_Z >-> lists.
+Coercion lstr: list_string >-> lists.
+Coercion lbool: list_bool >-> lists.
+*)
 Inductive Val :=
 | undecl: Val
 | unassign: Val
@@ -34,8 +51,20 @@ Inductive Val :=
 | integer : ErrorInt -> Val
 | bool: ErrorBool -> Val
 | str: ErrorString -> Val
-| vector_int : string -> nat -> list int -> Val
-| ptr : Val -> Val.
+| vectors : vect -> Val
+| ptr : Val -> Val
+with vect :=
+| error_vect: vect
+| vector_int : string -> nat -> list Z -> vect
+| vector_nat : string -> nat -> list Z -> vect
+| vector_bool : string -> nat -> list bool -> vect
+| vector_str : string -> nat -> list string -> vect
+.
+
+Coercion number: ErrorNat >-> Val.
+Coercion integer: ErrorInt >-> Val.
+Coercion bool: ErrorBool >-> Val.
+Coercion str : ErrorString >-> Val.
 
 Definition Env := string -> Val.
 Definition env : Env := fun x => undecl.
@@ -121,9 +150,14 @@ Inductive Stmt :=
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | For : Stmt -> BExp -> Stmt -> Stmt ->Stmt
 | forcontent : BExp -> Stmt -> Stmt -> Stmt
+| get_func : string -> list string -> Stmt
 | break
 | continue 
 | switch: AExp -> list cases -> Stmt
+| to_nat: Val -> Stmt
+| to_int: Val -> Stmt
+| to_bool: Val -> Stmt
+| to_string: Val -> Stmt
 with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
@@ -151,10 +185,19 @@ Notation "'default' : { A }" := (def A) (at level 92).
 Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
 Notation "'switch'' ( A ) : { B1 B2 .. Bn }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
-
+Notation "'(int)' { A }" := (to_int A)( at level 35).
+Notation "'(nat)' { A }" := (to_nat A)( at level 35).
+Notation "'(bool)' { A }" := (to_bool A)( at level 35).
+Notation "'(string)' { A }" := (to_string A)( at level 35).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
-Notation "A [ B ]={ C1 ; C2 ; .. ; Cn }" := (vector_int A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
+Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := (vector_int A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
+Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := (vector_nat A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
+Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := (vector_bool A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
+Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := (vector_str A B (cons C1 (cons C2 .. (cons Cn nil) ..) ) )(at level 50).
 
 Compute switch' (5):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} case(2): {If(1=='1) then {int "CC":= 13}end'} default : {bool "3" := true}}.
-Compute "ASD"[50]={ 1 ; 2 ; 3 }.
+Compute "ASD"[50]i={ 1 ; 2 ; 3 }.
+Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
+Compute "ASD"[50]b={ true ; false ; true }.
+Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
 Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
