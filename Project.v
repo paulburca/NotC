@@ -33,16 +33,13 @@ Inductive Val :=
 | number: ErrorNat -> Val
 | integer : ErrorInt -> Val
 | bool: ErrorBool -> Val
-| str: string -> Val
-| vector_nat : string -> nat -> list nat -> Val
-| vector_int : string -> nat -> list Z -> Val
+| str: ErrorString -> Val
+| vector_int : string -> nat -> list int -> Val
 | ptr : Val -> Val.
-
 
 Definition Env := string -> Val.
 Definition env : Env := fun x => undecl.
 Compute env "x".
-
 
 Inductive AExp :=
 | avar: string -> AExp
@@ -53,8 +50,7 @@ Inductive AExp :=
 | amul: AExp -> AExp -> AExp
 | adiv: AExp -> AExp -> AExp
 | amod: AExp -> AExp -> AExp
-| apow: AExp -> AExp -> AExp
-.
+| apow: AExp -> AExp -> AExp.
 
 Coercion anum : ErrorNat >-> AExp.
 Coercion avar : string >-> AExp.
