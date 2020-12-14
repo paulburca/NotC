@@ -24,8 +24,9 @@ Inductive ErrorString :=
 
 Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
+Coercion num : nat >-> ErrorNat.
 Notation "string( S )" := (strval S).
-Notation "nat( n )" := ( num n).
+
 
 Inductive Val :=
 | undecl: Val
@@ -36,6 +37,7 @@ Inductive Val :=
 | bol: ErrorBool -> Val
 | str: ErrorString -> Val
 | vector: vect -> Val
+| ptr: ErrorString -> Val
 with vect :=
 | error_vect: vect
 | vector_int : Z -> list Z -> vect
@@ -50,8 +52,10 @@ Coercion bol: ErrorBool >-> Val.
 Coercion str : ErrorString >-> Val.
 
 Definition Env := string -> Val.
-Definition env : Env := fun x => undecl.
-Compute env "x".
+Definition env_loc : Env := fun x => undecl.
+Definition env_globe : Env := fun x => undecl.
+
+Compute env_loc "x".
 
 Inductive AExp :=
 | avar: string -> AExp
@@ -145,14 +149,19 @@ with Stmt :=
 | to_int: Val -> Stmt
 | to_bool: Val -> Stmt
 | to_string: Val -> Stmt
+| read: string -> Stmt
+| write: STREXP -> Stmt 
 with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
 
 Inductive Lang :=
 | functions : func -> Lang 
-| glob_decl : Env -> Lang.
-
+| gdecl_int : string -> ErrorInt -> Lang
+| gdecl_nat : string -> ErrorNat -> Lang
+| gdecl_str : string -> ErrorString -> Lang
+| gdecl_bool : string -> ErrorBool -> Lang
+.
 
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
@@ -188,5 +197,5 @@ Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
 Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
 Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
-Compute main():
+Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' } end'.
 Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
