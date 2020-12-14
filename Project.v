@@ -155,7 +155,7 @@ with Stmt :=
 | to_bool: Val -> Stmt
 | to_string: Val -> Stmt
 | read: string -> Stmt
-| write: STREXP -> Stmt 
+| write: STREXP -> Stmt
 with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
