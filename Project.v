@@ -5,86 +5,60 @@ Local Open Scope string_scope.
 Local Open Scope list_scope.
 Local Open Scope Z_scope.
 
-Inductive ErrorNat :=
-  | error_nat : ErrorNat
-  | num :  nat -> ErrorNat.
+Inductive NatType :=
+  | error_nat : NatType
+  | num :  nat -> NatType.
 
-Inductive ErrorInt :=
-  | error_int : ErrorInt
-  | nr : Z -> ErrorInt.
+Inductive IntType :=
+  | error_int : IntType
+  | nr : Z -> IntType.
 
-Inductive ErrorBool :=
-  | error_bool : ErrorBool
-  | boolean : bool -> ErrorBool.
+Inductive BoolType :=
+  | error_bool : BoolType
+  | boolean : bool -> BoolType.
 
-Inductive ErrorString :=
-  | error_string : ErrorString
-  | strval : string -> ErrorString.
+Inductive StringType :=
+  | error_string : StringType
+  | strval : string -> StringType.
 
-Coercion boolean: bool >-> ErrorBool.
-Coercion nr : Z >-> ErrorInt.
-Coercion num : nat >-> ErrorNat.
+Coercion boolean: bool >-> BoolType.
+Coercion nr : Z >-> IntType.
+Coercion num : nat >-> NatType.
 Notation "string( S )" := (strval S).
 Notation "nat( N )" := (num N).
 Notation "int( I )" := (nr I).
 Notation "bool( B )" := (boolean B).
 
-Inductive Val :=
-| undecl: Val
-| unassign: Val
-| default: Val
-| number: ErrorNat -> Val
-| integer : ErrorInt -> Val
-| bol: ErrorBool -> Val
-| str: ErrorString -> Val
-| vector: vect -> Val
-with vect :=
-| error_vect: vect
-| vector_int : nat -> list ErrorInt -> vect
-| vector_nat : nat -> list ErrorNat -> vect
-| vector_bool : nat -> list ErrorBool -> vect
-| vector_str : nat -> list ErrorString -> vect
-.
-
-Coercion number: ErrorNat >-> Val.
-Coercion integer: ErrorInt >-> Val.
-Coercion bol: ErrorBool >-> Val.
-Coercion str : ErrorString >-> Val.
-
-Definition Env := string -> Val.
-Definition env_loc : Env := fun x => undecl.
-Definition env_globe : Env := fun x => undecl.
-
-Compute env_loc "x".
 
 Inductive STREXP := 
 | svar : string -> STREXP
-| sconst: ErrorString -> STREXP
-| strcat : ErrorString -> ErrorString -> STREXP
-| strcpy : ErrorString -> ErrorString -> STREXP
-.
+| sconst: StringType -> STREXP
+| strcat : string -> string -> STREXP
+| to_string : string -> STREXP.
 
 Notation "strcat( A , B )" := (strcat A B)(at level 52).
 Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 
-Coercion sconst: ErrorString >-> STREXP.
+Coercion sconst: StringType >-> STREXP.
 Coercion svar: string >-> STREXP.
 
 Inductive AExp :=
 | avar: string -> AExp
-| anum: ErrorNat -> AExp
-| aint: ErrorInt -> AExp
+| anum: NatType -> AExp
+| aint: IntType -> AExp
 | aplus: AExp -> AExp -> AExp
 | asub: AExp -> AExp -> AExp
 | amul: AExp -> AExp -> AExp
 | adiv: AExp -> AExp -> AExp
 | amod: AExp -> AExp -> AExp
 | apow: AExp -> AExp -> AExp
+| to_nat: string -> AExp 
+| to_int: string -> AExp
 | strlen: STREXP -> AExp.
 
-Coercion anum : ErrorNat >-> AExp.
+Coercion anum : NatType >-> AExp.
 Coercion avar : string >-> AExp.
-Coercion aint : ErrorInt >-> AExp.
+Coercion aint : IntType >-> AExp.
 
 Notation "A +' B" := (aplus A B) (at level 48).
 Notation "A -' B" := (asub A B) (at level 48).
@@ -97,7 +71,7 @@ Inductive BExp :=
 | btrue : BExp
 | bfalse : BExp
 | bvar : string -> BExp
-| bval : ErrorBool -> BExp
+| bval : BoolType -> BExp
 | blessthan : AExp -> AExp -> BExp
 | bnot : BExp -> BExp
 | band : BExp -> BExp -> BExp
@@ -110,10 +84,10 @@ Inductive BExp :=
 | bget : AExp -> AExp -> BExp
 | beq : AExp -> AExp -> BExp
 | bneq : AExp -> AExp -> BExp
-.
+| to_bool : string -> BExp.
 
 Coercion bvar: string >-> BExp.
-Coercion bval: ErrorBool >-> BExp.
+Coercion bval: BoolType >-> BExp.
 
 Notation "A <' B" := (blessthan A B) (at level 53).
 Notation "A >' B" := (bgreaterthan A B) (at level 53).
@@ -128,12 +102,22 @@ Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
 Notation "strcmp( A ; B )" := (strcmp A B) (at level 52).
 
+Inductive vect :=
+| error_vect: vect
+| vector_int : nat -> list IntType -> vect
+| vector_nat : nat -> list NatType -> vect
+| vector_bool : nat -> list BoolType -> vect
+| vector_str : nat -> list StringType -> vect.
 
 Inductive Stmt :=
 | def_nat : string -> AExp ->Stmt
 | def_bool : string -> BExp -> Stmt
 | def_int : string -> AExp -> Stmt
 | def_string : string -> STREXP -> Stmt
+| def_nat0 : string ->Stmt
+| def_bool0 : string -> Stmt
+| def_int0 : string  -> Stmt
+| def_string0 : string -> Stmt
 | def_vector : string -> vect -> Stmt
 | get_vval : string -> nat -> Stmt
 | assignment : string -> AExp -> Stmt
@@ -150,23 +134,45 @@ Inductive Stmt :=
 | break : Stmt
 | continue  : Stmt
 | switch: AExp -> list cases -> Stmt
-| to_nat: Val -> Stmt
-| to_int: Val -> Stmt
-| to_bool: Val -> Stmt
-| to_string: Val -> Stmt
 | read: string -> Stmt
 | write: STREXP -> Stmt
+| strcpy : string -> string -> Stmt
 with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
 
+Inductive Val :=
+| undecl: Val
+| unassign: Val
+| default: Val
+| number: NatType -> Val
+| integer : IntType -> Val
+| bol: BoolType -> Val
+| str: StringType -> Val
+| vector: vect -> Val
+| code: Stmt -> Val.
+
+Coercion number: NatType >-> Val.
+Coercion integer: IntType >-> Val.
+Coercion bol: BoolType >-> Val.
+Coercion str : StringType >-> Val.
+
+Definition Env := string -> Val.
+Definition env_loc : Env := fun x => undecl.
+Definition env_globe : Env := fun x => undecl.
+
+Compute env_loc "x".
 Inductive Lang := 
 | funcMain : Stmt -> Lang
 | funcs : string -> list string -> Stmt -> Lang
-| gdecl_int : string -> ErrorInt -> Lang
-| gdecl_nat : string -> ErrorNat -> Lang
-| gdecl_str : string -> ErrorString -> Lang
-| gdecl_bool : string -> ErrorBool -> Lang
+| gdecl_int : string -> IntType -> Lang
+| gdecl_nat : string -> NatType -> Lang
+| gdecl_str : string -> StringType -> Lang
+| gdecl_bool : string -> BoolType -> Lang
+| gdecl_int0 : string -> Lang
+| gdecl_nat0 : string -> Lang
+| gdecl_str0 : string -> Lang
+| gdecl_bool0 : string -> Lang
 | secv : Lang -> Lang-> Lang
 .
 
@@ -183,10 +189,18 @@ Notation "'nat' A := B" := (def_nat A B)(at level 50).
 Notation "'bool' A := B" := (def_bool A B)(at level 50).
 Notation "'int' A := B" := (def_int A B)(at level 50).
 Notation "'string' A := B" := (def_string A B)(at level 50).
+Notation "'nat' A |" := (def_nat0 A )(at level 50).
+Notation "'bool' A |" := (def_bool0 A )(at level 50).
+Notation "'int' A |" := (def_int0 A )(at level 50).
+Notation "'string' A |" := (def_string0 A )(at level 50).
 Notation "'nat'' A := B \" := (gdecl_nat A B)(at level 97).
 Notation "'bool'' A := B \" := (gdecl_bool A B)(at level 97).
 Notation "'int'' A := B \" := (gdecl_int A B)(at level 97).
 Notation "'string'' A := B \" := (gdecl_str A B)(at level 97).
+Notation "'nat'' A \" := (gdecl_nat0 A )(at level 97).
+Notation "'bool'' A \" := (gdecl_bool0 A )(at level 97).
+Notation "'int'' A \" := (gdecl_int0 A)(at level 97).
+Notation "'string'' A \" := (gdecl_str0 A )(at level 97).
 
 Notation "'default' : { A }" := (def A) (at level 92).
 Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
@@ -206,6 +220,11 @@ Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons
 Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons string(C1) (cons string(C2) .. (cons string(Cn) nil) ..) ) ) )(at level 50).
+Notation "A [ B ]i" := ( def_vector A ( vector_int B nil ) )(at level 50).
+Notation "A [ B ]n" := ( def_vector A ( vector_nat B nil ) )(at level 50).
+Notation "A [ B ]b" := ( def_vector A ( vector_bool B nil ) )(at level 50).
+Notation "A [ B ]s" := ( def_vector A ( vector_str B nil ) )(at level 50).
+
 Notation "A [ B ]" :=(get_vval A B)(at level 50).
 
 Compute switch' (5) : {case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}}.
@@ -213,9 +232,11 @@ Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
 Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
 Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
+Compute "ASD"[50]n.
+Compute "ASD"[50].
 Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' }.
 Compute func' "test" (( "text1" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end'} .
-Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end' } |' int' "x" := 2 \ |' func' main():{ If( 1=='1) then { "x" ::= 3 } end'}.
+Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end' } |' int' "x" \ |' func' main():{ If( 1=='1) then { "x" ::= 3 } end'}.
 
 
 
