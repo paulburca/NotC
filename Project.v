@@ -139,7 +139,7 @@ Inductive Stmt :=
 | strcpy : string -> string -> Stmt
 with cases:=
 | def: Stmt -> cases
-| basic : nat -> Stmt -> cases.
+| case : nat -> Stmt -> cases.
 
 Inductive Val :=
 | undecl: Val
@@ -203,7 +203,7 @@ Notation "'int'' A \" := (gdecl_int0 A)(at level 97).
 Notation "'string'' A \" := (gdecl_str0 A )(at level 97).
 
 Notation "'default' : { A }" := (def A) (at level 92).
-Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
+Notation "'case' ( A ) : { B }" := (case A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
 Notation "'switch'' ( A ) : { B1 ; B2 ; .. ; Bn }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
 Notation "'(int)' { A }" := (to_int A)( at level 35).
