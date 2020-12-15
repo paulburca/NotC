@@ -156,6 +156,7 @@ Coercion number: NatType >-> Val.
 Coercion integer: IntType >-> Val.
 Coercion bol: BoolType >-> Val.
 Coercion str : StringType >-> Val.
+Coercion code: Stmt >-> Val.
 
 Definition Env := string -> Val.
 Definition env_loc : Env := fun x => undecl.
