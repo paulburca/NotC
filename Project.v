@@ -57,6 +57,19 @@ Definition env_globe : Env := fun x => undecl.
 
 Compute env_loc "x".
 
+Inductive STREXP := 
+| svar : string -> STREXP
+| sconst: ErrorString -> STREXP
+| strcat : ErrorString -> ErrorString -> STREXP
+| strcpy : ErrorString -> ErrorString -> STREXP
+.
+
+Notation "strcat( A , B )" := (strcat A B)(at level 52).
+Notation "strcpy( A , B )" := (strcat A B)(at level 52).
+
+Coercion sconst: ErrorString >-> STREXP.
+Coercion svar: string >-> STREXP.
+
 Inductive AExp :=
 | avar: string -> AExp
 | anum: ErrorNat -> AExp
@@ -66,7 +79,8 @@ Inductive AExp :=
 | amul: AExp -> AExp -> AExp
 | adiv: AExp -> AExp -> AExp
 | amod: AExp -> AExp -> AExp
-| apow: AExp -> AExp -> AExp.
+| apow: AExp -> AExp -> AExp
+| strlen: STREXP -> AExp.
 
 Coercion anum : ErrorNat >-> AExp.
 Coercion avar : string >-> AExp.
@@ -91,7 +105,7 @@ Inductive BExp :=
 | bor : BExp -> BExp -> BExp
 | bxor : BExp -> BExp -> BExp
 | bxand : BExp -> BExp -> BExp
-| strcmp : string -> string -> BExp
+| strcmp : STREXP -> STREXP -> BExp
 | blet : AExp -> AExp -> BExp
 | bget : AExp -> AExp -> BExp
 | beq : AExp -> AExp -> BExp
@@ -114,19 +128,6 @@ Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
 Notation "strcmp( A ; B )" := (strcmp A B) (at level 52).
 
-Inductive STREXP := 
-| svar : ErrorString -> STREXP
-| sconst: string -> STREXP
-| strcat : ErrorString -> ErrorString -> STREXP
-| strcpy : ErrorString -> ErrorString -> STREXP
-.
-
-Notation "strcat( A , B )" := (strcat A B)(at level 52).
-Notation "strcpy( A , B )" := (strcat A B)(at level 52).
-
-Coercion svar: ErrorString >-> STREXP.
-Coercion sconst: string >-> STREXP.
-
 
 Inductive Stmt :=
 | def_nat : string -> AExp ->Stmt
@@ -134,7 +135,7 @@ Inductive Stmt :=
 | def_int : string -> AExp -> Stmt
 | def_string : string -> STREXP -> Stmt
 | def_vector : string -> vect -> Stmt
-| get_vval : vect -> nat -> Stmt
+| get_vval : string -> nat -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
 | sassignment : string -> STREXP -> Stmt
@@ -168,7 +169,6 @@ Inductive Lang :=
 | gdecl_bool : string -> ErrorBool -> Lang
 | secv : Lang -> Lang-> Lang
 .
-
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
@@ -206,6 +206,7 @@ Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons
 Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons string(C1) (cons string(C2) .. (cons string(Cn) nil) ..) ) ) )(at level 50).
+Notation "A [ B ]" :=(get_vval A B)(at level 50).
 
 Compute switch' (5) : {case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}}.
 Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
