@@ -21,7 +21,6 @@ Inductive ErrorString :=
   | error_string : ErrorString
   | strval : string -> ErrorString.
 
-
 Coercion boolean: bool >-> ErrorBool.
 Coercion nr : Z >-> ErrorInt.
 Coercion num : nat >-> ErrorNat.
@@ -39,7 +38,6 @@ Inductive Val :=
 | bol: ErrorBool -> Val
 | str: ErrorString -> Val
 | vector: vect -> Val
-| ptr: string -> Val
 with vect :=
 | error_vect: vect
 | vector_int : nat -> list ErrorInt -> vect
@@ -103,7 +101,6 @@ Inductive BExp :=
 Coercion bvar: string >-> BExp.
 Coercion bval: ErrorBool >-> BExp.
 
-
 Notation "A <' B" := (blessthan A B) (at level 53).
 Notation "A >' B" := (bgreaterthan A B) (at level 53).
 Notation "A <=' B" := (blet A B) (at level 53).
@@ -130,10 +127,8 @@ Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 Coercion svar: ErrorString >-> STREXP.
 Coercion sconst: string >-> STREXP.
 
-Inductive func := 
-| funcMain : Stmt -> func
-| funcs : string -> list string -> Stmt -> func
-with Stmt :=
+
+Inductive Stmt :=
 | def_nat : string -> AExp ->Stmt
 | def_bool : string -> BExp -> Stmt
 | def_int : string -> AExp -> Stmt
@@ -164,12 +159,14 @@ with cases:=
 | def: Stmt -> cases
 | basic : nat -> Stmt -> cases.
 
-Inductive Lang :=
-| functions : func -> Lang 
+Inductive Lang := 
+| funcMain : Stmt -> Lang
+| funcs : string -> list string -> Stmt -> Lang
 | gdecl_int : string -> ErrorInt -> Lang
 | gdecl_nat : string -> ErrorNat -> Lang
 | gdecl_str : string -> ErrorString -> Lang
 | gdecl_bool : string -> ErrorBool -> Lang
+| secv : Lang -> Lang-> Lang
 .
 
 
@@ -186,6 +183,11 @@ Notation "'nat' A := B" := (def_nat A B)(at level 50).
 Notation "'bool' A := B" := (def_bool A B)(at level 50).
 Notation "'int' A := B" := (def_int A B)(at level 50).
 Notation "'string' A := B" := (def_string A B)(at level 50).
+Notation "'nat'' A := B \" := (gdecl_nat A B)(at level 97).
+Notation "'bool'' A := B \" := (gdecl_bool A B)(at level 97).
+Notation "'int'' A := B \" := (gdecl_int A B)(at level 97).
+Notation "'string'' A := B \" := (gdecl_str A B)(at level 97).
+
 Notation "'default' : { A }" := (def A) (at level 92).
 Notation "'case' ( A ) : { B }" := (basic A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
@@ -194,12 +196,12 @@ Notation "'(int)' { A }" := (to_int A)( at level 35).
 Notation "'(nat)' { A }" := (to_nat A)( at level 35).
 Notation "'(bool)' { A }" := (to_bool A)( at level 35).
 Notation "'(string)' { A }" := (to_string A)( at level 35).
-Notation "'func'' main():{ C } 'end''" := (funcMain C )(at level 20).
-Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C } 'end''" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 20).
-Notation "'func'' A (( B )):{ C } 'end''" := (funcs A (cons B nil) C )(at level 20).
-Notation "'func'' A (()):{ C } 'end''" := (funcs A C )(at level 20).
-
-Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 20).
+Notation "'func'' main():{ C }" := (funcMain C )(at level 97).
+Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 97).
+Notation "'func'' A (( B )):{ C }" := (funcs A (cons B nil) C )(at level 97).
+Notation "'func'' A (()):{ C }" := (funcs A C )(at level 97).
+Notation "A '|'' B" := (secv A B)(at level 96).
+Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 91).
 Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons int(C1) (cons int(C2) .. (cons int(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
 Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
@@ -210,9 +212,9 @@ Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
 Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
 Compute "ASD"[50]b={ true ; false ; true }.
 Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
-Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' } end'.
-Compute func' "test" (( "text1" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end' } end'.
-Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end'} end'.
+Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' }.
+Compute func' "test" (( "text1" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end'} .
+Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end' } |' int' "x" := 2 \ |' func' main():{ If( 1=='1) then { "x" ::= 3 } end'}.
 
 
 
