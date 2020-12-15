@@ -23,4 +23,5 @@ Netriviale:
 - simulare I/O
 - break
 - continue
+- pointeri
 - operatii pe string-uri
