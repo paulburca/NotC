@@ -33,7 +33,7 @@ Notation "bool( B )" := (boolean B).
 Inductive STREXP := 
 | svar : string -> STREXP
 | sconst: StringType -> STREXP
-| strcat : string -> string -> STREXP
+| strcat : STREXP -> STREXP -> STREXP
 | to_string : string -> STREXP.
 
 Notation "strcat( A , B )" := (strcat A B)(at level 52).
@@ -236,8 +236,20 @@ Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
 Compute "ASD"[50]n.
 Compute "ASD"[50].
 Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' }.
-Compute func' "test" (( "text1" )):{ If ( 1 ==' 1 ) then { "text1" :s:= string( "test" ) } end'} .
-Compute func' "test" (( "text1" ; "text2" )):{ If ( 1 ==' 1 ) then { -> "test" (( "text1" ; "text2" )) } end' } |' int' "x" \ |' func' main():{ If( 1=='1) then { "x" ::= 3 } end'}.
+Compute func' "test" (( "text1" )):{
+           If ( 1 ==' 1 ) then 
+              { "text1" :s:= string( "test" ) } end' ;; } .
+Compute func' "test" (( "text1" ; "text2" )):{
+          If ( 1 ==' 1 ) then 
+            { -> "test" (( "text1" ; "text2" )) 
+            } end' 
+          } |' 
+          int' "x" \ |' 
+          func' main():{ 
+          If( 1=='1) then 
+            { "x" ::= 3 }
+            end'
+          }.
 
 
 
