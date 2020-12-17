@@ -34,6 +34,7 @@ Inductive STREXP :=
 | svar : string -> STREXP
 | sconst: StringType -> STREXP
 | strcat : STREXP -> STREXP -> STREXP
+| get_vval_s : string -> nat -> STREXP
 | to_string : string -> STREXP.
 
 Notation "strcat( A , B )" := (strcat A B)(at level 52).
@@ -54,6 +55,7 @@ Inductive AExp :=
 | apow: AExp -> AExp -> AExp
 | to_nat: string -> AExp 
 | to_int: string -> AExp
+| get_vval_a : string -> nat -> AExp
 | strlen: STREXP -> AExp.
 
 Coercion anum : NatType >-> AExp.
@@ -84,6 +86,7 @@ Inductive BExp :=
 | bget : AExp -> AExp -> BExp
 | beq : AExp -> AExp -> BExp
 | bneq : AExp -> AExp -> BExp
+| get_vval_b : string -> nat -> BExp
 | to_bool : string -> BExp.
 
 Coercion bvar: string >-> BExp.
@@ -119,7 +122,6 @@ Inductive Stmt :=
 | def_int0 : string  -> Stmt
 | def_string0 : string -> Stmt
 | def_vector : string -> vect -> Stmt
-| get_vval : string -> nat -> Stmt
 | assignment : string -> AExp -> Stmt
 | bassignment : string -> BExp -> Stmt
 | sassignment : string -> STREXP -> Stmt
@@ -194,60 +196,63 @@ Notation "'nat' A |" := (def_nat0 A )(at level 50).
 Notation "'bool' A |" := (def_bool0 A )(at level 50).
 Notation "'int' A |" := (def_int0 A )(at level 50).
 Notation "'string' A |" := (def_string0 A )(at level 50).
-Notation "'nat'' A := B \" := (gdecl_nat A B)(at level 97).
-Notation "'bool'' A := B \" := (gdecl_bool A B)(at level 97).
-Notation "'int'' A := B \" := (gdecl_int A B)(at level 97).
-Notation "'string'' A := B \" := (gdecl_str A B)(at level 97).
-Notation "'nat'' A \" := (gdecl_nat0 A )(at level 97).
-Notation "'bool'' A \" := (gdecl_bool0 A )(at level 97).
-Notation "'int'' A \" := (gdecl_int0 A)(at level 97).
-Notation "'string'' A \" := (gdecl_str0 A )(at level 97).
+Notation "'nat'' A := B |" := (gdecl_nat A B)(at level 97).
+Notation "'bool'' A := B |" := (gdecl_bool A B)(at level 97).
+Notation "'int'' A := B |" := (gdecl_int A B)(at level 97).
+Notation "'string'' A := B |" := (gdecl_str A B)(at level 97).
+Notation "'nat'' A |" := (gdecl_nat0 A )(at level 97).
+Notation "'bool'' A |" := (gdecl_bool0 A )(at level 97).
+Notation "'int'' A |" := (gdecl_int0 A)(at level 97).
+Notation "'string'' A |" := (gdecl_str0 A )(at level 97).
 
 Notation "'default' : { A }" := (def A) (at level 92).
 Notation "'case' ( A ) : { B }" := (case A B) (at level 92).
 Notation "'switch'' ( A ) : { B } " := (switch A (cons B nil)) (at level 93).
 Notation "'switch'' ( A ) : { B1 ; B2 ; .. ; Bn }" := (switch A (cons B1 (cons B2 .. (cons Bn nil) ..))) (at level 93).
-Notation "'(int)' { A }" := (to_int A)( at level 35).
-Notation "'(nat)' { A }" := (to_nat A)( at level 35).
-Notation "'(bool)' { A }" := (to_bool A)( at level 35).
-Notation "'(string)' { A }" := (to_string A)( at level 35).
+Notation "'(int)' ( A ) " := (to_int A)( at level 35).
+Notation "'(nat)' ( A )" := (to_nat A)( at level 35).
+Notation "'(bool)' ( A )" := (to_bool A)( at level 35).
+Notation "'(string)' ( A )" := (to_string A)( at level 35).
 Notation "'func'' main():{ C }" := (funcMain C )(at level 97).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 97).
 Notation "'func'' A (( B )):{ C }" := (funcs A (cons B nil) C )(at level 97).
 Notation "'func'' A (()):{ C }" := (funcs A C )(at level 97).
 Notation "A '|'' B" := (secv A B)(at level 96).
 Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 91).
-Notation "A [ B ]i={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons int(C1) (cons int(C2) .. (cons int(Cn) nil) ..) ) ) )(at level 50).
-Notation "A [ B ]n={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
-Notation "A [ B ]b={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
-Notation "A [ B ]s={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons string(C1) (cons string(C2) .. (cons string(Cn) nil) ..) ) ) )(at level 50).
-Notation "A [ B ]i" := ( def_vector A ( vector_int B nil ) )(at level 50).
-Notation "A [ B ]n" := ( def_vector A ( vector_nat B nil ) )(at level 50).
-Notation "A [ B ]b" := ( def_vector A ( vector_bool B nil ) )(at level 50).
-Notation "A [ B ]s" := ( def_vector A ( vector_str B nil ) )(at level 50).
+Notation "'int' A [ B ]={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons int(C1) (cons int(C2) .. (cons int(Cn) nil) ..) ) ) )(at level 50).
+Notation "'nat' A [ B ]={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_nat B (cons nat(C1) (cons nat(C2) .. (cons nat(Cn) nil) ..) ) ) )(at level 50).
+Notation "'bool' A [ B ]={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_bool B (cons bool(C1) (cons bool(C2) .. (cons bool(Cn) nil) ..) ) ) )(at level 50).
+Notation "'string' A [ B ]={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_str B (cons string(C1) (cons string(C2) .. (cons string(Cn) nil) ..) ) ) )(at level 50).
+Notation "'int' A [ B ]" := ( def_vector A ( vector_int B nil ) )(at level 50).
+Notation "'nat' A [ B ]" := ( def_vector A ( vector_nat B nil ) )(at level 50).
+Notation "'bool' A [ B ]" := ( def_vector A ( vector_bool B nil ) )(at level 50).
+Notation "'string' A [ B ]" := ( def_vector A ( vector_str B nil ) )(at level 50).
 
-Notation "A [ B ]" :=(get_vval A B)(at level 50).
+Notation "A a[ B ]" :=(get_vval_a A B)(at level 51).
+Notation "A s[ B ]" :=(get_vval_s A B)(at level 51).
+Notation "A b[ B ]" :=(get_vval_b A B)(at level 51).
 
 Compute switch' (5) : {case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}}.
-Compute "ASD" [50]i={ -1 ; 2 ; -3 }.
-Compute "ASD"[50]n={ 1 ; 2 ; 3 }.
-Compute "ASD"[50]b={ true ; false ; true }.
-Compute "ASD"[50]s={ "1" ; "2" ; "3" }.
-Compute "ASD"[50]n.
-Compute "ASD"[50].
+Compute int "ASD" [50]={ -1 ; 2 ; -3 }.
+Compute nat "ASD"[50]={ 1 ; 2 ; 3 }.
+Compute bool "ASD"[50]={ true ; false ; true }.
+Compute string "ASD"[50]={ "1" ; "2" ; "3" }.
+Compute nat "ASD"[50].
+Compute "ASD"a[50].
 Compute func' main():{ If( 1=='1) then { "x" ::= 3 } end' }.
 Compute func' "test" (( "text1" )):{
            If ( 1 ==' 1 ) then 
-              { "text1" :s:= string( "test" ) } end' ;; } .
+              { "text1" :s:= string( "test" ) } end' } .
 Compute func' "test" (( "text1" ; "text2" )):{
           If ( 1 ==' 1 ) then 
             { -> "test" (( "text1" ; "text2" )) 
-            } end' 
+            } end' ;;
+            string "QWE"[55]
           } |' 
-          int' "x" \ |' 
+          int' "x" := 5 | |' 
           func' main():{ 
           If( 1=='1) then 
-            { "x" ::= 3 }
+            { "x" ::= 3 ;; int "y" | ;; int "j" := 7 ;; -> "test" (("x" ; "y"));; string "u" :=(string) ("j") }
             end'
           }.
 
