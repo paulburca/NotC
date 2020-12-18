@@ -168,10 +168,10 @@ Compute env_loc "x".
 Inductive Lang := 
 | funcMain : Stmt -> Lang
 | funcs : string -> list string -> Stmt -> Lang
-| gdecl_int : string -> IntType -> Lang
-| gdecl_nat : string -> NatType -> Lang
-| gdecl_str : string -> StringType -> Lang
-| gdecl_bool : string -> BoolType -> Lang
+| gdecl_int : string -> AExp -> Lang
+| gdecl_nat : string -> AExp -> Lang
+| gdecl_str : string -> STREXP -> Lang
+| gdecl_bool : string -> BExp -> Lang
 | gdecl_int0 : string -> Lang
 | gdecl_nat0 : string -> Lang
 | gdecl_str0 : string -> Lang
