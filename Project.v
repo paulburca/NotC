@@ -105,6 +105,7 @@ Notation "A ==' B" := (beq A B) (at level 53).
 Notation "A !=' B" := (bneq A B) (at level 53).
 Notation "strcmp( A ; B )" := (strcmp A B) (at level 52).
 
+
 Inductive vect :=
 | error_vect: vect
 | vector_int : nat -> list IntType -> vect
@@ -178,6 +179,151 @@ Inductive Lang :=
 | gdecl_bool0 : string -> Lang
 | secv : Lang -> Lang-> Lang
 .
+
+Reserved Notation "A -[ S ]-> N" (at level 60).
+
+Inductive seval : STREXP -> Env -> StringType -> Prop:=
+| s_const : forall s sigma, sconst s-[ sigma ]-> s
+| s_cat : forall s1 s2 sigma s12,
+  s12 = s1 ++ s2 ->
+  strcat s1 s2 -[ sigma ]-> s12
+where "a -[ sigma ]-> s" := (seval a sigma s).
+
+Reserved Notation "A =[ S ]=> N" (at level 60).
+
+Inductive aeval : AExp -> Env -> NatType-> Prop :=
+| const : forall  n sigma, anum n =[ sigma ]=> n (* <n,sigma> => <n> *) 
+| var : forall v sigma, avar v =[ sigma ]=> (nr (sigma v)) (* <v,sigma> => sigma(x) *)
+| add : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 + i2 ->
+    a1 +' a2 =[sigma]=> n
+| times : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 * i2 ->
+    a1 *' a2 =[sigma]=> n
+| dec: forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 - i2 ->
+    a1 -' a2 =[sigma]=> n
+| div : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (Nat.div i1 i2) ->
+    a1 /' a2 =[sigma]=> n
+| modu: forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (Nat.modulo i1 i2) ->
+    a1 %' a2 =[sigma]=> n
+where "a =[ sigma ]=> n" := (aeval a sigma n).
+
+
+Reserved Notation "B ={ S }=> B'" (at level 70).
+
+Inductive beval : BExp -> Env -> BoolType -> Prop :=
+| e_true : forall sigma, btrue ={ sigma }=> true
+| e_false : forall sigma, bfalse ={ sigma }=> false
+| e_var : forall v sigma, bvar v ={ sigma }=> (bol (sigma v))
+| e_lessthan : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.leb i1 i2 ->
+    a1 <=' a2 ={ sigma }=> b
+| e_nottrue : forall b sigma,
+    b ={ sigma }=> true ->
+    (bnot b) ={ sigma }=> false
+| e_notfalse : forall b sigma,
+    b ={ sigma }=> false ->
+    (bnot b) ={ sigma }=> true
+| e_andtrue : forall b1 b2 sigma t,
+    b1 ={ sigma }=> true ->
+    b2 ={ sigma }=> t ->
+    band b1 b2 ={ sigma }=> t
+| e_andfalse : forall b1 b2 sigma,
+    b1 ={ sigma }=> false ->
+    band b1 b2 ={ sigma }=> false
+| e_bgreaterthan : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.leb  i2 i1->
+    a1 >=' a2 ={ sigma }=> b
+| e_ortrue :forall b1 b2 sigma,
+    b1 ={ sigma }=> true ->
+    bor b1 b2 ={ sigma }=> true
+| e_orfalse : forall b1 b2 sigma t,
+    b1 ={ sigma }=> false ->
+    b2 ={ sigma }=> t ->
+    bor b1 b2 ={ sigma }=> t
+where "B ={ S }=> B'" := (beval B S B').
+
+
+Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
+Check update. 
+
+Inductive eval : Stmt -> Env -> Env -> Prop :=
+| e_def_nat: forall a i x sigma sigma',
+    i=[sigma]=>x ->
+    sigma' = (update sigma a x) ->
+    (def_nat a i) -{ sigma }-> sigma' 
+| e_def_bool: forall a i x sigma sigma',
+    i={sigma}=>x ->
+    sigma' = (update sigma a x ) ->
+    (def_bool a i) -{ sigma }-> sigma'
+| e_assignment_nat: forall a i x sigma sigma',
+    i =[sigma]=> x ->
+    sigma' = (update sigma a x) ->
+    (a ::= i) -{ sigma }-> sigma'
+| e_assignment_bool: forall a i x sigma sigma',
+    i ={sigma}=> x ->
+    sigma' = (update sigma a x) ->
+    (a :b:= i) -{ sigma }-> sigma'
+| e_seq : forall s1 s2 sigma sigma' sigma'',
+    s1 -{ sigma }-> sigma' ->
+    s2 -{ sigma' }-> sigma'' ->
+    (s1 ;; s2) -{ sigma }-> sigma''
+| e_whilefalse : forall b s sigma,
+    b ={ sigma }=> false ->
+    while b s -{ sigma }-> sigma
+| e_whiletrue : forall b s sigma sigma',
+    b ={ sigma }=> true ->
+    (s ;; while b s) -{ sigma }-> sigma' ->
+    while b s -{ sigma }-> sigma'
+| e_iffalse1 : forall b s1 sigma,
+    b ={ sigma }=> false ->
+    ifthen b s1 -{ sigma }-> sigma
+| e_iftrue1 : forall b s1 sigma sigma',
+    b ={ sigma }=> true ->
+    s1 -{ sigma }-> sigma' ->
+    ifthen b s1 -{ sigma }-> sigma'
+| e_iffalse2 : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> false ->
+    s2 -{ sigma }-> sigma' ->
+    ifthenelse b s1 s2 -{ sigma }-> sigma'
+| e_iftrue2 : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> true ->
+    s1 -{ sigma }-> sigma' ->
+    ifthenelse b s1 s2 -{ sigma }-> sigma'
+| e_for_false : forall a b st s1 sigma sigma',
+    a -{ sigma }-> sigma' ->
+    b ={ sigma' }=> false ->
+    For a b st s1 -{ sigma }-> sigma'
+| e_for_true : forall a b st s1 sigma sigma' sigma'',
+    a -{ sigma }-> sigma' ->
+    b ={ sigma' }=> true ->
+    (s1 ;; st ;; forcontent b st s1) -{ sigma' }-> sigma'' ->
+    For a b st s1 -{ sigma }-> sigma''
+| e_forcontent_false : forall b st s1 sigma,
+    b ={ sigma}=> false ->
+    forcontent b st s1 -{ sigma }-> sigma
+| e_forcontent_true : forall b st s1 sigma sigma',
+    b ={ sigma }=> true ->
+    (s1 ;; st ;; forcontent b st s1) -{ sigma }-> sigma' ->
+    forcontent b st s1 -{ sigma }-> sigma'
+where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
