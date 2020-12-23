@@ -42,7 +42,14 @@ Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 
 Coercion sconst: StringType >-> STREXP.
 Coercion svar: string >-> STREXP.
-
+Fixpoint streval (str:STREXP):=
+match str with
+| svar s => s
+| sconst s => s
+| strcat s1 s2 => s1 ++ s2
+| get_vval_s s n =>
+| to_string s=>
+end.
 Inductive AExp :=
 | avar: string -> AExp
 | anum: NatType -> AExp
@@ -165,6 +172,11 @@ Definition Env := string -> Val.
 Definition env_loc : Env := fun x => undecl.
 Definition env_globe : Env := fun x => undecl.
 
+Definition update (env : Env) (str : string) (val : Val) :=
+  fun str' => if (string_dec str str') then val else env str'.
+
+Notation "S [ Val /' Str ]" := (update S Str Val) (at level 0).
+`
 Compute env_loc "x".
 Inductive Lang := 
 | funcMain : Stmt -> Lang
@@ -187,6 +199,8 @@ Inductive seval : STREXP -> Env -> StringType -> Prop:=
 | s_cat : forall s1 s2 sigma s12,
   s12 = s1 ++ s2 ->
   strcat s1 s2 -[ sigma ]-> s12
+| get_vval_s: s n
+| to_string s: 
 where "a -[ sigma ]-> s" := (seval a sigma s).
 
 Reserved Notation "A =[ S ]=> N" (at level 60).
@@ -219,6 +233,13 @@ Inductive aeval : AExp -> Env -> NatType-> Prop :=
     a2 =[ sigma ]=> i2 ->
     n = (Nat.modulo i1 i2) ->
     a1 %' a2 =[sigma]=> n
+| pow: forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    s2 =[ sigma ]=> i2 ->
+    n =(Nat.power i1 i2) ->
+    i1 ^' i2 =[sigma]=>n
+| len: forall s =>
+
 where "a =[ sigma ]=> n" := (aeval a sigma n).
 
 
@@ -258,6 +279,31 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> t ->
     bor b1 b2 ={ sigma }=> t
+| e_xor_true_tf : forall b1 b2 sigma,
+    b1 ={ sigma }=> true ->
+    b2 ={ sigma }=> false ->
+    bor b1 b2 ={ sigma }=> true 
+| e_xor_true_ft : forall b1 b2 sigma,
+    b1 ={ sigma }=> false ->
+    b2 ={ sigma }=> true ->
+    bor b1 b2 ={ sigma }=> true 
+| e_xor_false : forall b2 b2 sigma t,
+    b1 ={ sigma }=> t ->
+    b2 ={ sigma }=> t ->
+    bxor b1 b2 ={ sigma }=> false
+| e_xand_true : forall b1 b2 sigma t,
+    b1 ={ sigma }=> t ->
+    b2 ={ sigma }=> t ->
+    bxand b1 b2 ={ sigma }=> true
+
+| e_xand_false_tf : forall b1 b2 sigma t,
+    b1 ={ sigma }=> true ->
+    b2 ={ sigma }=> false ->
+    bxand b1 b2 ={ sigma }=> false  
+| e_xand_false_ft : forall b1 b2 sigma t,
+    b1 ={ sigma }=> false ->
+    b2 ={ sigma }=> true ->
+    bxand b1 b2 ={ sigma }=> false
 where "B ={ S }=> B'" := (beval B S B').
 
 
