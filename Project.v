@@ -458,12 +458,12 @@ Inductive seval : STREXP -> Env -> StringType -> Prop:=
   s12 = (concat s1' s2') ->
   strcat s1' s2' -[ sigma ]-> strval s12
 | s_get_vval_s : forall s n l sigma v,
-  l=
+  l= vect_list_s (sigma s) ->
   v=vect_parse n l string("") ->
   get_vval_s s n -[sigma]->v
-| s_to_string:forall s,
-  s' = strng s ->
-  to_string s -[sigma]-> s'
+| s_to_string:forall s sigma s',
+  s' = strng (sigma s) ->
+  to_string s -[sigma]-> strval s'
 where "a -[ sigma ]-> s" := (seval a sigma s).
 
 Reserved Notation "A =[ S ]=> N" (at level 60).
