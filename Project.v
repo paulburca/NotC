@@ -1,6 +1,9 @@
 Require Import Strings.String.
+Require Import Strings.Ascii.
 Require Import Coq.ZArith.BinInt.
 Require Import Lists.List.
+Require Export BinNums.
+Require Import BinPos BinNat.
 Local Open Scope string_scope.
 Local Open Scope list_scope.
 Local Open Scope Z_scope.
@@ -42,14 +45,30 @@ Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 
 Coercion sconst: StringType >-> STREXP.
 Coercion svar: string >-> STREXP.
-Fixpoint streval (str:STREXP):=
-match str with
-| svar s => s
-| sconst s => s
-| strcat s1 s2 => s1 ++ s2
-| get_vval_s s n =>
-| to_string s=>
+
+Fixpoint vect_s_parse (n : nat) (l: list StringType) (default : StringType):=
+match n,l with
+| O, x::l' => x
+| O, other => default
+| S m, nil => default
+| S m, x::l' => vect_s_parse m l' default
 end.
+
+Fixpoint concat (l : list (list STREXP)) : list STREXP :=
+match l with
+| nil => nil
+| cons x l => x ++ concat l
+end.
+(*Fixpoint streval (str:STREXP):=
+match str with
+| svar s => string(s)
+| sconst s => s
+| get_vval_s s n => vect_s_parse 
+| strcat s1 s2 => ((s1::nil) ++ (s2::nil))
+| to_string s => match s with
+                |
+                 end. 
+end.*)
 Inductive AExp :=
 | avar: string -> AExp
 | anum: NatType -> AExp
@@ -167,7 +186,194 @@ Coercion integer: IntType >-> Val.
 Coercion bol: BoolType >-> Val.
 Coercion str : StringType >-> Val.
 Coercion code: Stmt >-> Val.
+Definition abs_nat (z:Z) : nat :=
+  match z with
+    | 0 => 0%nat
+    | Zpos p => Pos.to_nat p
+    | Zneg p => Pos.to_nat p
+  end.
+Fixpoint list_ascii_to_list_nat (l:list ascii):list nat:=
+match l with
+| nil =>  nil
+| x::l' => (nat_of_ascii x)::list_ascii_to_list_nat l'
+end.
 
+Fixpoint list_int_to_list_nat (l:list IntType): list nat :=
+match l with
+| nil => nil
+| x::l' => match x with
+          |error_int => abs_nat 0::list_int_to_list_nat l'
+          |nr x'=> (abs_nat x')::list_int_to_list_nat l'
+          end
+end.
+
+Fixpoint list_NatType_to_list_nat (l:list NatType): list nat :=
+match l with
+| nil => nil
+| x::l' => match x with
+          |error_nat => (abs_nat 0)::list_NatType_to_list_nat l'
+          |num x'=> (x')::list_NatType_to_list_nat l'
+          end
+end.
+Fixpoint list_BoolType_to_list_nat (l:list BoolType): list nat :=
+match l with
+| nil => nil
+| x::l' => match x with
+          |error_bool => (abs_nat 0)::list_BoolType_to_list_nat l'
+          |boolean x'=> match(x')with
+                        |false => (abs_nat 0)::list_BoolType_to_list_nat l'
+                        |true => (abs_nat 1)::list_BoolType_to_list_nat l'
+                        end
+          end
+end.
+Fixpoint list_StrType_to_list_nat (l:list StringType): list nat :=
+match l with
+| nil => nil
+| x::l' => match x with
+          |error_string => (abs_nat 0)::list_StrType_to_list_nat l'
+          |strval x'=> list_sum(list_ascii_to_list_nat(list_ascii_of_string(x')))::list_StrType_to_list_nat l'
+          end
+end.
+(*Definition natural (val : Val) : nat :=
+match val with
+| undecl=> 0
+| unassign=> 0
+| default=> 0
+| number n=> (match n with 
+            |error_nat => 0
+            |num n' => n' 
+            end )
+| integer i=> (match i with 
+               | error_int =>0
+               | nr i' =>  ( abs_nat i' )end)
+| bol b=> (match b with 
+          | error_bool => 0
+          | boolean b' => match b' with
+                          | true => 1
+                          | false => 0 end
+          end)  
+| str s=> match s with
+          | error_string => 0
+          | strval s' => list_sum(list_ascii_to_list_nat(list_ascii_of_string(s'))) end
+| vector v=>  match v with
+              |error_vect => 0
+              | vector_int n i'=> list_sum(list_int_to_list_nat(i')) 
+              | vector_nat n n'=> list_sum(list_NatType_to_list_nat(n'))
+              | vector_bool n b'=> list_sum(list_BoolType_to_list_nat(b'))
+              | vector_str n s'=> list_sum(list_StrType_to_list_nat(s'))
+              end
+| code s => 
+end.
+
+Definition integ (val : Val) : Z :=
+match val with
+| undecl=> 0
+| unassign=> 0
+| default=> 0
+| number n=> match n with
+            | error_nat => 0
+            | num n' => Z_of_nat n'
+            end
+| integer i=> match i with
+              | error_int => 0
+              | nr i' => i'
+              end
+| bol b=> match b with
+          | error_bool => 0
+          | boolean b' => match b' with
+                          | true => 1
+                          | false => 0
+                          end
+          end
+| str s=> match s with
+          | error_string => 0
+          | strval s' => Z_of_nat (list_sum(list_ascii_to_list_nat(list_ascii_of_string(s'))))
+          end
+| vector v=>  match v with
+              |error_vect => 0
+              | vector_int n i'=> Z_of_nat (list_sum(list_int_to_list_nat(i'))) 
+              | vector_nat n n'=> Z_of_nat (list_sum(list_NatType_to_list_nat(n')))
+              | vector_bool n b'=> Z_of_nat (list_sum(list_BoolType_to_list_nat(b')))
+              | vector_str n s'=> Z_of_nat (list_sum(list_StrType_to_list_nat(s')))
+              end
+end.
+
+Definition bol (val : Val) : BoolType :=
+match val with
+| undecl=> false
+| unassign=> false
+| default=> false
+| number n=> match n with
+            | error_nat => false
+            | num n' => if(Nat.eqb n' 0) then false else true
+            end
+| integer i=> match i with 
+            | error_int => false
+            | nr i' =>  if(Z.leb i' 0 ) then true else false
+            end
+| bol b=> match b with
+          | error_bool => false
+          | boolean b' => b'
+          end
+| str s=> match s with
+          |error_string => false
+          | strval s' => if(string_dec s' "") then false else true
+          end
+| vector v=> match v with
+              |error_vect => false
+              | vector_int n i'=> true
+              | vector_nat n n'=> true
+              | vector_bool n b'=> true
+              | vector_str n s'=> true
+              end 
+end.
+
+
+Definition strng (val : Val) : string :=
+match val with
+| undecl=> ""
+| unassign=> ""
+| default=> ""
+| number n=> match n with
+             | error_nat => ""
+             | num n' => string_of_list_ascii(cons (ascii_of_nat n') nil)
+             end
+| integer i=> match i with 
+              | error_int => "" 
+              | nr i' => string_of_list_ascii(cons (ascii_of_nat(abs_nat i')) nil)
+              end
+| bol b=> match b with
+          | error_bool => ""
+          | boolean b' => match  b' with
+                          | true => "true"
+                          | false => "false"
+                          end
+          end
+| str s=> match s with
+          | error_string => ""
+          | strval s' => s'
+          end
+| vector v=>  match v with
+              | error_vect => ""
+              | vector_int n i'=> match i' with
+                                  | nil => ""
+                                  | x::l => "x"
+                                  end
+              | vector_nat n n'=> match n' with
+                                  | nil => ""
+                                  | x::l => "x"
+                                  end
+              | vector_bool n b'=> match b' with
+                                  | nil => ""
+                                  | x::l => "x"
+                                  end
+              | vector_str n s'=> match s' with
+                                  | nil => ""
+                                  | x::l => "x"
+                                  end
+              end
+end.
+*)
 Definition Env := string -> Val.
 Definition env_loc : Env := fun x => undecl.
 Definition env_globe : Env := fun x => undecl.
@@ -176,7 +382,7 @@ Definition update (env : Env) (str : string) (val : Val) :=
   fun str' => if (string_dec str str') then val else env str'.
 
 Notation "S [ Val /' Str ]" := (update S Str Val) (at level 0).
-`
+
 Compute env_loc "x".
 Inductive Lang := 
 | funcMain : Stmt -> Lang
@@ -194,20 +400,42 @@ Inductive Lang :=
 
 Reserved Notation "A -[ S ]-> N" (at level 60).
 
+Fixpoint vect_parse (n:nat)(l:list StringType)(def: StringType): StringType:=
+match n, l with 
+| O,  x::l' => x
+| O, other => def
+| S m, nil => def
+| S m,  x::l' => vect_parse m l' def
+end.
+(*
 Inductive seval : STREXP -> Env -> StringType -> Prop:=
 | s_const : forall s sigma, sconst s-[ sigma ]-> s
 | s_cat : forall s1 s2 sigma s12,
   s12 = s1 ++ s2 ->
   strcat s1 s2 -[ sigma ]-> s12
-| get_vval_s: s n
-| to_string s: 
+| s_get_vval_s : forall n l,
+  v=vect_parse n l string("")
+  get_vval_s-[sigma]->v
+| s_to_string: 
 where "a -[ sigma ]-> s" := (seval a sigma s).
-
+*)
 Reserved Notation "A =[ S ]=> N" (at level 60).
 
+Fixpoint length (s : string) : nat :=
+  match s with
+  | EmptyString => 0
+  | String c s' => S (length s')
+  end.
+Definition inttype_to_z (i:IntType):Z:=
+match i with
+| error_int => 0
+| nr i' => i'
+end.
+(*
 Inductive aeval : AExp -> Env -> NatType-> Prop :=
-| const : forall  n sigma, anum n =[ sigma ]=> n (* <n,sigma> => <n> *) 
-| var : forall v sigma, avar v =[ sigma ]=> (nr (sigma v)) (* <v,sigma> => sigma(x) *)
+| const_nat : forall  n sigma, anum n =[ sigma ]=> n (* <n,sigma> => <n> *) 
+| const_int : forall  n sigma, aint n =[ sigma ]=>  abs_nat(inttype_to_z n) (* <n,sigma> nat=> <n> *) 
+| var : forall v sigma, avar v =[ sigma ]=> ( (sigma v)) (* <v,sigma> => sigma(x) *)
 | add : forall a1 a2 i1 i2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
@@ -236,24 +464,29 @@ Inductive aeval : AExp -> Env -> NatType-> Prop :=
 | pow: forall a1 a2 i1 i2 sigma n,
     a1 =[ sigma ]=> i1 ->
     s2 =[ sigma ]=> i2 ->
-    n =(Nat.power i1 i2) ->
+    n =( Z.pow i1 i2) ->
     i1 ^' i2 =[sigma]=>n
-| len: forall s =>
+| tonat : forall s1 sigma,
+    to_nat s1 =[ sigma ]=> (nr s1)
+| toint : forall s1 sigma,
+    to_int s1 =[ sigma ]=> (integ s1)
+| len: forall s sigma,
+    strlen =[ sigma ]=> Nat(length s)
 
 where "a =[ sigma ]=> n" := (aeval a sigma n).
-
+*)
 
 Reserved Notation "B ={ S }=> B'" (at level 70).
-
+(*
 Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_true : forall sigma, btrue ={ sigma }=> true
 | e_false : forall sigma, bfalse ={ sigma }=> false
 | e_var : forall v sigma, bvar v ={ sigma }=> (bol (sigma v))
-| e_lessthan : forall a1 a2 i1 i2 sigma b,
+| e_blt : forall a1 a2 i1 i2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.leb i1 i2 ->
-    a1 <=' a2 ={ sigma }=> b
+    b = Nat.ltb i1 i2 ->
+    a1 <' a2 ={ sigma }=> b
 | e_nottrue : forall b sigma,
     b ={ sigma }=> true ->
     (bnot b) ={ sigma }=> false
@@ -267,11 +500,11 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_andfalse : forall b1 b2 sigma,
     b1 ={ sigma }=> false ->
     band b1 b2 ={ sigma }=> false
-| e_bgreaterthan : forall a1 a2 i1 i2 sigma b,
+| e_bgt : forall a1 a2 i1 i2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.leb  i2 i1->
-    a1 >=' a2 ={ sigma }=> b
+    b = Nat.ltb  i2 i1->
+    a1 >' a2 ={ sigma }=> b
 | e_ortrue :forall b1 b2 sigma,
     b1 ={ sigma }=> true ->
     bor b1 b2 ={ sigma }=> true
@@ -279,6 +512,16 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> t ->
     bor b1 b2 ={ sigma }=> t
+| e_blet : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.leb i1 i2 ->
+    a1 <=' a2 ={ sigma }=> b
+| e_bget : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.leb i2 i1 ->
+    a1 <=' a2 ={ sigma }=> b
 | e_xor_true_tf : forall b1 b2 sigma,
     b1 ={ sigma }=> true ->
     b2 ={ sigma }=> false ->
@@ -295,7 +538,6 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> t ->
     b2 ={ sigma }=> t ->
     bxand b1 b2 ={ sigma }=> true
-
 | e_xand_false_tf : forall b1 b2 sigma t,
     b1 ={ sigma }=> true ->
     b2 ={ sigma }=> false ->
@@ -304,8 +546,39 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> true ->
     bxand b1 b2 ={ sigma }=> false
+| e_beq : forall a1 a2 i1 i2 sigma,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = Nat.eqb i1 i2 ->
+    a1 ==' a2 ={ sigma }=> b
+| e_bneq_tf : forall a1 a2 i1 i2 sigma, 
+    a1 =[ sigma ]=> true ->
+    a2 =[ sigma ]=> false ->
+    a1 !=' a2 ={ sigma }=> true
+| e_bneq_ft : forall a1 a2 i1 i2 sigma, 
+    a1 =[ sigma ]=> false ->
+    a2 =[ sigma ]=> true ->
+    a1 !=' a2 ={ sigma }=> true
+| e_bneq_false : forall a1 a2 t sigma,
+    a1 =[ sigma ]=> t ->
+    a2 =[ sigma ]=> t ->
+    a1 !=' a2 ={sigma}=> false
+| e_strcmp : forall s1 s2 s11 s22 sigma s,
+    s1 -[ sigma ]-> s11 ->
+    s2 -[ sigma ]-> s22 ->
+    s = string_dec s11 s22 ->
+    strcmp s1 s2  ={sigma}=> s
+| e_tobol : forall v sigma,
+    to_bool v ={ sigma }=> (bol v)
 where "B ={ S }=> B'" := (beval B S B').
-
+*)
+Fixpoint list_cases_parse (n:nat) (l: list Stmt) (def: Stmt): Stmt :=
+match n, l with 
+| O, x::l' => x
+| O, other => def
+| S m, nil => def
+| S m, x::l' => list_cases_parse m l' def
+end.
 
 Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
 Check update. 
@@ -315,28 +588,52 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     i=[sigma]=>x ->
     sigma' = (update sigma a x) ->
     (def_nat a i) -{ sigma }-> sigma' 
+| e_def_int: forall a i x sigma sigma',
+    i=[sigma]=>x ->
+    sigma' = (update sigma a x) ->
+    (def_int a i) -{ sigma }-> sigma'  
 | e_def_bool: forall a i x sigma sigma',
     i={sigma}=>x ->
     sigma' = (update sigma a x ) ->
     (def_bool a i) -{ sigma }-> sigma'
-| e_assignment_nat: forall a i x sigma sigma',
+| e_def_string: forall a i x sigma sigma',
+    i-[sigma]->x ->
+    sigma' = (update sigma a x) ->
+    (def_string a i) -{ sigma }-> sigma'
+| e_def_nat0: forall a sigma sigma',
+    sigma' = (update sigma a x) ->
+    (def_nat a) -{ sigma }-> sigma' 
+| e_def_int0: forall a sigma sigma',
+    sigma' = (update sigma a unassign) ->
+    (def_int a) -{ sigma }-> sigma'  
+| e_def_bool0: forall a sigma sigma',
+    sigma' = (update sigma a unassign ) ->
+    (def_bool a) -{ sigma }-> sigma'
+| e_def_string0: forall a sigma sigma',
+    sigma' = (update sigma a unassign) ->
+    (def_string a) -{ sigma }-> sigma'
+| e_assignment: forall a i x sigma sigma',
     i =[sigma]=> x ->
     sigma' = (update sigma a x) ->
-    (a ::= i) -{ sigma }-> sigma'
-| e_assignment_bool: forall a i x sigma sigma',
+    (assignment a i) -{ sigma }-> sigma'
+| e_bassignment: forall a i x sigma sigma',
     i ={sigma}=> x ->
     sigma' = (update sigma a x) ->
-    (a :b:= i) -{ sigma }-> sigma'
+    (bassignment a i) -{ sigma }-> sigma'
+| e_sassignment: forall a i x sigma sigma',
+    i -[sigma]-> x ->
+    sigma' = (update sigma a x) ->
+    (sassignment a i) -{ sigma }-> sigma'
 | e_seq : forall s1 s2 sigma sigma' sigma'',
     s1 -{ sigma }-> sigma' ->
     s2 -{ sigma' }-> sigma'' ->
-    (s1 ;; s2) -{ sigma }-> sigma''
+    (seq s1 s2) -{ sigma }-> sigma''
 | e_whilefalse : forall b s sigma,
     b ={ sigma }=> false ->
     while b s -{ sigma }-> sigma
 | e_whiletrue : forall b s sigma sigma',
     b ={ sigma }=> true ->
-    (s ;; while b s) -{ sigma }-> sigma' ->
+    (seq s (while b s)) -{ sigma }-> sigma' ->
     while b s -{ sigma }-> sigma'
 | e_iffalse1 : forall b s1 sigma,
     b ={ sigma }=> false ->
@@ -360,15 +657,34 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_for_true : forall a b st s1 sigma sigma' sigma'',
     a -{ sigma }-> sigma' ->
     b ={ sigma' }=> true ->
-    (s1 ;; st ;; forcontent b st s1) -{ sigma' }-> sigma'' ->
+    (seq s1 (seq st  forcontent b st s1)) -{ sigma' }-> sigma'' ->
     For a b st s1 -{ sigma }-> sigma''
 | e_forcontent_false : forall b st s1 sigma,
     b ={ sigma}=> false ->
     forcontent b st s1 -{ sigma }-> sigma
 | e_forcontent_true : forall b st s1 sigma sigma',
     b ={ sigma }=> true ->
-    (s1 ;; st ;; forcontent b st s1) -{ sigma }-> sigma' ->
+    (seq s1 (seq st forcontent b st s1)) -{ sigma }-> sigma' ->
     forcontent b st s1 -{ sigma }-> sigma'
+| e_dowhile_true : forall st b sigma sigma' sigma'',
+    st -{ sigma }-> sigma' ->
+    b ={ sigma' }=> true ->
+    dowhile -{ sigma' }-> sigma'' ->
+    dowhile st b -{ sigma }-> sigma'
+| e_dowhile_false : forall st b,
+    st -{ sigma }-> sigma' ->
+    b ={ sigma' }=> false ->
+    dowhile b st -{ sigma }-> sigma'
+| e_switch : forall a list b sigma n v sigma',
+    a =[ sigma ]=> n ->
+    v = (list_cases_parse n list b) ->
+    v -{ sigma }-> sigma' ->
+    switch a (list b) -{ sigma }-> sigma'
+| e_strcpy : forall s1 s2 sigma sigma',
+    sigma' = update(sigma s1 svar(s2)) ->
+    strcpy s1 s2 -{ sigma }-> sigma'
+| e_getfunc : forall s list s1,
+    
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
