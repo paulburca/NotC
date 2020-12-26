@@ -547,6 +547,14 @@ match  i with
 |error_int => 0
 |nr i' => i'
 end.
+Definition StringType_to_string (s: StringType) :string:=
+match s with
+|error_string => ""
+|strval s' => s'
+end.
+Definition stringeq (s1 s2:string) :bool:=
+if(string_dec s1 s2) then true else false
+.
 Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_true : forall sigma, btrue ={ sigma }=> true
 | e_false : forall sigma, bfalse ={ sigma }=> false
@@ -615,11 +623,11 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> t ->
     b2 ={ sigma }=> t ->
     bxand b1 b2 ={ sigma }=> true
-| e_xand_false_tf : forall b1 b2 sigma t,
+| e_xand_false_tf : forall b1 b2 sigma,
     b1 ={ sigma }=> true ->
     b2 ={ sigma }=> false ->
     bxand b1 b2 ={ sigma }=> false  
-| e_xand_false_ft : forall b1 b2 sigma t,
+| e_xand_false_ft : forall b1 b2 sigma,
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> true ->
     bxand b1 b2 ={ sigma }=> false
@@ -644,10 +652,10 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_strcmp : forall s1 s2 s11 s22 sigma s,
     s1 -[ sigma ]-> s11 ->
     s2 -[ sigma ]-> s22 ->
-    s = string_dec s11 s22 ->
+    s = stringeq (StringType_to_string s11) (StringType_to_string s22) ->
     strcmp s1 s2  ={sigma}=> s
 | e_tobol : forall v sigma,
-    to_bool v ={ sigma }=> (bol v)
+    to_bool v ={ sigma }=> (boole (sigma v))
 where "B ={ S }=> B'" := (beval B S B').
 
 Fixpoint list_cases_parse (n:nat) (l: list Stmt) (def: Stmt): Stmt :=
