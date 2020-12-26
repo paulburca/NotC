@@ -36,7 +36,7 @@ Notation "bool( B )" := (boolean B).
 Inductive STREXP := 
 | svar : string -> STREXP
 | sconst: StringType -> STREXP
-| strcat : STREXP -> STREXP -> STREXP
+| strcat : string -> string -> STREXP
 | get_vval_s : string -> nat -> STREXP
 | to_string : string -> STREXP.
 
@@ -46,29 +46,23 @@ Notation "strcpy( A , B )" := (strcat A B)(at level 52).
 Coercion sconst: StringType >-> STREXP.
 Coercion svar: string >-> STREXP.
 
-Fixpoint vect_s_parse (n : nat) (l: list StringType) (default : StringType):=
+Fixpoint vect_s_parse (n : nat) (l: list StringType) (default : StringType):string:=
 match n,l with
-| O, x::l' => x
-| O, other => default
-| S m, nil => default
+| O, x::l' =>  match x with
+              | error_string => ""
+              | strval s' => s'
+              end
+| O, other => match default with
+              | error_string => ""
+              | strval s' => s'
+              end
+| S m, nil =>  match default with
+              | error_string => ""
+              | strval s' => s'
+              end
 | S m, x::l' => vect_s_parse m l' default
 end.
 
-Fixpoint concat (l : list (list STREXP)) : list STREXP :=
-match l with
-| nil => nil
-| cons x l => x ++ concat l
-end.
-(*Fixpoint streval (str:STREXP):=
-match str with
-| svar s => string(s)
-| sconst s => s
-| get_vval_s s n => vect_s_parse 
-| strcat s1 s2 => ((s1::nil) ++ (s2::nil))
-| to_string s => match s with
-                |
-                 end. 
-end.*)
 Inductive AExp :=
 | avar: string -> AExp
 | anum: NatType -> AExp
@@ -82,7 +76,7 @@ Inductive AExp :=
 | to_nat: string -> AExp 
 | to_int: string -> AExp
 | get_vval_a : string -> nat -> AExp
-| strlen: STREXP -> AExp.
+| strlen: string -> AExp.
 
 Coercion anum : NatType >-> AExp.
 Coercion avar : string >-> AExp.
@@ -186,6 +180,7 @@ Coercion integer: IntType >-> Val.
 Coercion bol: BoolType >-> Val.
 Coercion str : StringType >-> Val.
 Coercion code: Stmt >-> Val.
+
 Definition abs_nat (z:Z) : nat :=
   match z with
     | 0 => 0%nat
@@ -234,7 +229,7 @@ match l with
           |strval x'=> list_sum(list_ascii_to_list_nat(list_ascii_of_string(x')))::list_StrType_to_list_nat l'
           end
 end.
-(*Definition natural (val : Val) : nat :=
+Definition natural (val : Val) : nat :=
 match val with
 | undecl=> 0
 | unassign=> 0
@@ -262,7 +257,7 @@ match val with
               | vector_bool n b'=> list_sum(list_BoolType_to_list_nat(b'))
               | vector_str n s'=> list_sum(list_StrType_to_list_nat(s'))
               end
-| code s => 
+| code s => 1
 end.
 
 Definition integ (val : Val) : Z :=
@@ -296,9 +291,10 @@ match val with
               | vector_bool n b'=> Z_of_nat (list_sum(list_BoolType_to_list_nat(b')))
               | vector_str n s'=> Z_of_nat (list_sum(list_StrType_to_list_nat(s')))
               end
+| code s => 1
 end.
 
-Definition bol (val : Val) : BoolType :=
+Definition boole (val : Val) : BoolType :=
 match val with
 | undecl=> false
 | unassign=> false
@@ -326,6 +322,7 @@ match val with
               | vector_bool n b'=> true
               | vector_str n s'=> true
               end 
+| code s => true
 end.
 
 
@@ -369,18 +366,59 @@ match val with
                                   end
               | vector_str n s'=> match s' with
                                   | nil => ""
-                                  | x::l => "x"
+                                  | x::l => match x with
+                                            |error_string => ""
+                                            | strval s' => s'
+                                            end
                                   end
               end
+| code s => "code"
 end.
-*)
+Definition vect_list_s (val :Val) :list StringType:=
+match val with
+| undecl=> nil
+| unassign=> nil
+| default=> nil
+| number n=> nil
+| integer i=> nil
+| bol b=> nil
+| str s=> nil
+| vector v=>  match v with
+              | error_vect => nil
+              | vector_int n i'=> nil
+              | vector_nat n n'=> nil
+              | vector_bool n b'=> nil
+              | vector_str n s'=> match s' with
+                                  | nil => nil
+                                  | x::l => x::l
+                                  end
+              end
+| code s => nil
+end
+.
 Definition Env := string -> Val.
 Definition env_loc : Env := fun x => undecl.
 Definition env_globe : Env := fun x => undecl.
-
+Definition streval (str:STREXP) (env:Env):string:=
+match str with
+| svar s => strng (env s)
+| sconst s => match s with
+              | error_string => ""
+              | strval s' => s'
+              end
+| get_vval_s s n => vect_s_parse n (vect_list_s(env s)) string("")
+| strcat s1 s2 => ( s1 ++ s2)
+| to_string s => strng(env s)
+end.
 Definition update (env : Env) (str : string) (val : Val) :=
   fun str' => if (string_dec str str') then val else env str'.
 
+Fixpoint list_update (env : Env) (l:list string) (env1 : Env) :=
+  match l with
+  |nil => nil
+  |c::l' => (update env c (env1 c))::list_update env l' env1
+  end
+.
 Notation "S [ Val /' Str ]" := (update S Str Val) (at level 0).
 
 Compute env_loc "x".
@@ -398,8 +436,6 @@ Inductive Lang :=
 | secv : Lang -> Lang-> Lang
 .
 
-Reserved Notation "A -[ S ]-> N" (at level 60).
-
 Fixpoint vect_parse (n:nat)(l:list StringType)(def: StringType): StringType:=
 match n, l with 
 | O,  x::l' => x
@@ -407,18 +443,29 @@ match n, l with
 | S m, nil => def
 | S m,  x::l' => vect_parse m l' def
 end.
-(*
+Fixpoint concat (s1 s2 : string) : string :=
+  match s1 with
+  | EmptyString => s2
+  | String c s1' => String c (concat s1' s2)
+  end
+.
+Reserved Notation "A -[ S ]-> N" (at level 60).
 Inductive seval : STREXP -> Env -> StringType -> Prop:=
 | s_const : forall s sigma, sconst s-[ sigma ]-> s
-| s_cat : forall s1 s2 sigma s12,
-  s12 = s1 ++ s2 ->
-  strcat s1 s2 -[ sigma ]-> s12
-| s_get_vval_s : forall n l,
-  v=vect_parse n l string("")
-  get_vval_s-[sigma]->v
-| s_to_string: 
+| s_cat : forall s1 s2 sigma s12 s1' s2',
+  s1'= (streval s1 sigma) ->
+  s2'= (streval s2 sigma) ->
+  s12 = (concat s1' s2') ->
+  strcat s1' s2' -[ sigma ]-> strval s12
+| s_get_vval_s : forall s n l sigma v,
+  l=
+  v=vect_parse n l string("") ->
+  get_vval_s s n -[sigma]->v
+| s_to_string:forall s,
+  s' = strng s ->
+  to_string s -[sigma]-> s'
 where "a -[ sigma ]-> s" := (seval a sigma s).
-*)
+
 Reserved Notation "A =[ S ]=> N" (at level 60).
 
 Fixpoint length (s : string) : nat :=
@@ -431,61 +478,85 @@ match i with
 | error_int => 0
 | nr i' => i'
 end.
-(*
-Inductive aeval : AExp -> Env -> NatType-> Prop :=
-| const_nat : forall  n sigma, anum n =[ sigma ]=> n (* <n,sigma> => <n> *) 
-| const_int : forall  n sigma, aint n =[ sigma ]=>  abs_nat(inttype_to_z n) (* <n,sigma> nat=> <n> *) 
-| var : forall v sigma, avar v =[ sigma ]=> ( (sigma v)) (* <v,sigma> => sigma(x) *)
-| add : forall a1 a2 i1 i2 sigma n,
+Definition NatType_to_nat (n: NatType): nat :=
+match n with
+         | error_nat => 0
+         | num n' => n' 
+         end
+.
+Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
+| const_nat : forall  n sigma, anum n =[ sigma ]=> integ n (* <n,sigma> => <n> *) 
+| const_int : forall  n sigma, aint n =[ sigma ]=>  n (* <n,sigma> nat=> <n> *) 
+| var : forall v sigma, avar v =[ sigma ]=> ( integ(sigma v)) (* <v,sigma> => sigma(x) *)
+| add : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    n = i1 + i2 ->
+    v1 = (integ i1) ->
+    v2 = (integ i2) ->
+    n = v1 + v2 ->
     a1 +' a2 =[sigma]=> n
-| times : forall a1 a2 i1 i2 sigma n,
+| times : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    n = i1 * i2 ->
+    v1 = (integ i1) ->
+    v2 = (integ i2) ->
+    n = v1 * v2 ->
     a1 *' a2 =[sigma]=> n
-| dec: forall a1 a2 i1 i2 sigma n,
+| dec: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    n = i1 - i2 ->
+    v1 = (integ i1) ->
+    v2 = (integ i2) ->
+    n =  v1 - v2 ->
     a1 -' a2 =[sigma]=> n
-| div : forall a1 a2 i1 i2 sigma n,
+| div : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    n = (Nat.div i1 i2) ->
+    v1 =( integ i1) ->
+    v2 = (integ i2) ->
+    n = ( v1 / v2) ->
     a1 /' a2 =[sigma]=> n
-| modu: forall a1 a2 i1 i2 sigma n,
+| modu: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    n = (Nat.modulo i1 i2) ->
+    v1 = (integ i1) ->
+    v2 = (integ i2) ->
+    n = (Z.modulo v1 v2) ->
     a1 %' a2 =[sigma]=> n
-| pow: forall a1 a2 i1 i2 sigma n,
+| pow: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
-    s2 =[ sigma ]=> i2 ->
-    n =( Z.pow i1 i2) ->
+    a2 =[ sigma ]=> i2 ->
+    v1 = (integ i1) ->
+    v2 = (integ i2) ->
+    n =( Z.pow v1 v2) ->
     i1 ^' i2 =[sigma]=>n
 | tonat : forall s1 sigma,
-    to_nat s1 =[ sigma ]=> (nr s1)
+    to_nat s1 =[ sigma ]=> (integ(sigma s1))
 | toint : forall s1 sigma,
-    to_int s1 =[ sigma ]=> (integ s1)
+    to_int s1 =[ sigma ]=> (integ (sigma s1))
 | len: forall s sigma,
-    strlen =[ sigma ]=> Nat(length s)
+    strlen s =[ sigma ]=> integ(length s)
 
-where "a =[ sigma ]=> n" := (aeval a sigma n).
-*)
+where "a =[ sigma ]=> n" := (aeval_int a sigma n).
+
 
 Reserved Notation "B ={ S }=> B'" (at level 70).
-(*
+
+Definition IntType_to_Z (i: IntType) :Z:=
+match  i with
+|error_int => 0
+|nr i' => i'
+end.
 Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_true : forall sigma, btrue ={ sigma }=> true
 | e_false : forall sigma, bfalse ={ sigma }=> false
-| e_var : forall v sigma, bvar v ={ sigma }=> (bol (sigma v))
-| e_blt : forall a1 a2 i1 i2 sigma b,
+| e_var : forall v sigma, bvar v ={ sigma }=> (boole (sigma v))
+| e_blt : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.ltb i1 i2 ->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = Z.ltb v1 v2 ->
     a1 <' a2 ={ sigma }=> b
 | e_nottrue : forall b sigma,
     b ={ sigma }=> true ->
@@ -500,10 +571,12 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_andfalse : forall b1 b2 sigma,
     b1 ={ sigma }=> false ->
     band b1 b2 ={ sigma }=> false
-| e_bgt : forall a1 a2 i1 i2 sigma b,
+| e_bgt : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.ltb  i2 i1->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = Z.ltb v2 v1->
     a1 >' a2 ={ sigma }=> b
 | e_ortrue :forall b1 b2 sigma,
     b1 ={ sigma }=> true ->
@@ -512,15 +585,19 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> t ->
     bor b1 b2 ={ sigma }=> t
-| e_blet : forall a1 a2 i1 i2 sigma b,
+| e_blet : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.leb i1 i2 ->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = Z.leb v1 v2 ->
     a1 <=' a2 ={ sigma }=> b
-| e_bget : forall a1 a2 i1 i2 sigma b,
+| e_bget : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.leb i2 i1 ->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = Z.leb v2 v1 ->
     a1 <=' a2 ={ sigma }=> b
 | e_xor_true_tf : forall b1 b2 sigma,
     b1 ={ sigma }=> true ->
@@ -530,7 +607,7 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> true ->
     bor b1 b2 ={ sigma }=> true 
-| e_xor_false : forall b2 b2 sigma t,
+| e_xor_false : forall b1 b2 sigma t,
     b1 ={ sigma }=> t ->
     b2 ={ sigma }=> t ->
     bxor b1 b2 ={ sigma }=> false
@@ -546,19 +623,20 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     b1 ={ sigma }=> false ->
     b2 ={ sigma }=> true ->
     bxand b1 b2 ={ sigma }=> false
-| e_beq : forall a1 a2 i1 i2 sigma,
+| e_beq : forall a1 a2 i1 i2 b v1 v2 sigma,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
-    b = Nat.eqb i1 i2 ->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = Z.eqb v1 v2 ->
     a1 ==' a2 ={ sigma }=> b
-| e_bneq_tf : forall a1 a2 i1 i2 sigma, 
-    a1 =[ sigma ]=> true ->
-    a2 =[ sigma ]=> false ->
-    a1 !=' a2 ={ sigma }=> true
-| e_bneq_ft : forall a1 a2 i1 i2 sigma, 
-    a1 =[ sigma ]=> false ->
-    a2 =[ sigma ]=> true ->
-    a1 !=' a2 ={ sigma }=> true
+| e_bneq_true: forall a1 a2 i1 i2 v1 v2 b sigma, 
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    v1 = IntType_to_Z i1->
+    v2 = IntType_to_Z i2->
+    b = ( orb ( Z.gtb v1 v2) ( Z.ltb v1 v2)) ->
+    a1 !=' a2 ={ sigma }=> b
 | e_bneq_false : forall a1 a2 t sigma,
     a1 =[ sigma ]=> t ->
     a2 =[ sigma ]=> t ->
@@ -571,7 +649,7 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_tobol : forall v sigma,
     to_bool v ={ sigma }=> (bol v)
 where "B ={ S }=> B'" := (beval B S B').
-*)
+
 Fixpoint list_cases_parse (n:nat) (l: list Stmt) (def: Stmt): Stmt :=
 match n, l with 
 | O, x::l' => x
@@ -683,8 +761,8 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_strcpy : forall s1 s2 sigma sigma',
     sigma' = update(sigma s1 svar(s2)) ->
     strcpy s1 s2 -{ sigma }-> sigma'
-| e_getfunc : forall s list s1,
-    
+| e_getfunc : forall s list s1 sigma sigma',
+    sigma'= (update )
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
