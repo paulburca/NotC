@@ -160,6 +160,7 @@ Inductive Stmt :=
 | read: string -> Stmt
 | write: STREXP -> Stmt
 | strcpy : string -> string -> Stmt
+| nullstmt : Stmt
 with cases:=
 | def: Stmt -> cases
 | case : nat -> Stmt -> cases.
@@ -658,12 +659,17 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     to_bool v ={ sigma }=> (boole (sigma v))
 where "B ={ S }=> B'" := (beval B S B').
 
-Fixpoint list_cases_parse (n:nat) (l: list Stmt) (def: Stmt): Stmt :=
+Definition get_def (l :cases): Stmt :=
+match l with
+| def d => d
+| case n c => nullstmt
+end.
+Fixpoint list_cases_parse (n:nat) (l: list Stmt) (d: Stmt): Stmt :=
 match n, l with 
 | O, x::l' => x
-| O, other => def
-| S m, nil => def
-| S m, x::l' => list_cases_parse m l' def
+| O, other => get_def(def d)
+| S m, nil => get_def(def d)
+| S m, x::l' => list_cases_parse m l' d
 end.
 
 Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
@@ -686,18 +692,18 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     i-[sigma]->x ->
     sigma' = (update sigma a x) ->
     (def_string a i) -{ sigma }-> sigma'
-| e_def_nat0: forall a sigma sigma',
+| e_def_nat0: forall a sigma sigma' x,
     sigma' = (update sigma a x) ->
-    (def_nat a) -{ sigma }-> sigma' 
+    (def_nat0 a) -{ sigma }-> sigma' 
 | e_def_int0: forall a sigma sigma',
     sigma' = (update sigma a unassign) ->
-    (def_int a) -{ sigma }-> sigma'  
+    (def_int0 a) -{ sigma }-> sigma'  
 | e_def_bool0: forall a sigma sigma',
     sigma' = (update sigma a unassign ) ->
-    (def_bool a) -{ sigma }-> sigma'
+    (def_bool0 a) -{ sigma }-> sigma'
 | e_def_string0: forall a sigma sigma',
     sigma' = (update sigma a unassign) ->
-    (def_string a) -{ sigma }-> sigma'
+    (def_string0 a) -{ sigma }-> sigma'
 | e_assignment: forall a i x sigma sigma',
     i =[sigma]=> x ->
     sigma' = (update sigma a x) ->
@@ -713,13 +719,13 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_seq : forall s1 s2 sigma sigma' sigma'',
     s1 -{ sigma }-> sigma' ->
     s2 -{ sigma' }-> sigma'' ->
-    (seq s1 s2) -{ sigma }-> sigma''
+    (sequence s1 s2) -{ sigma }-> sigma''
 | e_whilefalse : forall b s sigma,
     b ={ sigma }=> false ->
     while b s -{ sigma }-> sigma
 | e_whiletrue : forall b s sigma sigma',
     b ={ sigma }=> true ->
-    (seq s (while b s)) -{ sigma }-> sigma' ->
+    (sequence s (while b s)) -{ sigma }-> sigma' ->
     while b s -{ sigma }-> sigma'
 | e_iffalse1 : forall b s1 sigma,
     b ={ sigma }=> false ->
@@ -743,29 +749,29 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_for_true : forall a b st s1 sigma sigma' sigma'',
     a -{ sigma }-> sigma' ->
     b ={ sigma' }=> true ->
-    (seq s1 (seq st  forcontent b st s1)) -{ sigma' }-> sigma'' ->
+    (sequence s1 (sequence st  (forcontent b st s1))) -{ sigma' }-> sigma'' ->
     For a b st s1 -{ sigma }-> sigma''
 | e_forcontent_false : forall b st s1 sigma,
     b ={ sigma}=> false ->
     forcontent b st s1 -{ sigma }-> sigma
 | e_forcontent_true : forall b st s1 sigma sigma',
     b ={ sigma }=> true ->
-    (seq s1 (seq st forcontent b st s1)) -{ sigma }-> sigma' ->
+    (sequence s1 (sequence st (forcontent b st s1))) -{ sigma }-> sigma' ->
     forcontent b st s1 -{ sigma }-> sigma'
 | e_dowhile_true : forall st b sigma sigma' sigma'',
     st -{ sigma }-> sigma' ->
     b ={ sigma' }=> true ->
-    dowhile -{ sigma' }-> sigma'' ->
+    st -{ sigma' }-> sigma'' ->
     dowhile st b -{ sigma }-> sigma'
-| e_dowhile_false : forall st b,
+| e_dowhile_false : forall st b sigma sigma',
     st -{ sigma }-> sigma' ->
     b ={ sigma' }=> false ->
-    dowhile b st -{ sigma }-> sigma'
-| e_switch : forall a list b sigma n v sigma',
+    dowhile st b -{ sigma }-> sigma'
+| e_switch : forall a b sigma n v sigma',
     a =[ sigma ]=> n ->
-    v = (list_cases_parse n list b) ->
+    v = (list_cases_parse (abs_nat(IntType_to_Z n)) b nullstmt) ->
     v -{ sigma }-> sigma' ->
-    switch a (list b) -{ sigma }-> sigma'
+    switch a (b) -{ sigma }-> sigma'
 | e_strcpy : forall s1 s2 sigma sigma',
     sigma' = update(sigma s1 svar(s2)) ->
     strcpy s1 s2 -{ sigma }-> sigma'
