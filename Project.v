@@ -377,22 +377,44 @@ match val with
 end.
 Definition vect_list_s (val :Val) :list StringType:=
 match val with
-| undecl=> nil
-| unassign=> nil
-| default=> nil
-| number n=> nil
-| integer i=> nil
-| bol b=> nil
-| str s=> nil
+| undecl=> error_string::nil
+| unassign=> error_string::nil
+| default=> error_string::nil
+| number n=> error_string::nil
+| integer i=> error_string::nil
+| bol b=> error_string::nil
+| str s=> error_string::nil
 | vector v=>  match v with
-              | error_vect => nil
-              | vector_int n i'=> nil
-              | vector_nat n n'=> nil
-              | vector_bool n b'=> nil
+              | error_vect => error_string::nil
+              | vector_int n i'=> error_string::nil
+              | vector_nat n n'=> error_string::nil
+              | vector_bool n b'=> error_string::nil
               | vector_str n s'=> match s' with
                                   | nil => nil
                                   | x::l => x::l
                                   end
+              end
+| code s => nil
+end
+.
+Definition vect_list_b (val :Val) :list BoolType:=
+match val with
+| undecl=> error_bool::nil
+| unassign=> error_bool::nil
+| default=> error_bool::nil
+| number n=> error_bool::nil
+| integer i=> error_bool::nil
+| bol b=> error_bool::nil
+| str s=> error_bool::nil
+| vector v=>  match v with
+              | error_vect => error_bool::nil
+              | vector_int n i'=> error_bool::nil
+              | vector_nat n n'=> error_bool::nil
+              | vector_bool n b'=> match b' with
+                                  | nil => nil
+                                  | x::l => x::l
+                                  end
+              | vector_str n s'=>  error_bool::nil
               end
 | code s => nil
 end
@@ -411,16 +433,15 @@ match str with
 | strcat s1 s2 => ( s1 ++ s2)
 | to_string s => strng(env s)
 end.
-Definition update (env : Env) (str : string) (val : Val) :=
+Definition update (env : Env) (str : string) (val : Val): Env :=
   fun str' => if (string_dec str str') then val else env str'.
 
 Fixpoint list_update (env : Env) (l:list string) (env1 : Env) :=
   match l with
-  |nil => nil
-  |c::l' => (update env c (env1 c))::list_update env l' env1
+  |c::l' => list_update (update env c (env1 c)) l' env1
+  |nil => env
   end
 .
-Notation "S [ Val /' Str ]" := (update S Str Val) (at level 0).
 
 Compute env_loc "x".
 Inductive Lang := 
@@ -437,7 +458,7 @@ Inductive Lang :=
 | secv : Lang -> Lang-> Lang
 .
 
-Fixpoint vect_parse (n:nat)(l:list StringType)(def: StringType): StringType:=
+Fixpoint vect_parse {A:Type}(n:nat)(l:list A)(def: A): A:=
 match n, l with 
 | O,  x::l' => x
 | O, other => def
@@ -460,7 +481,7 @@ Inductive seval : STREXP -> Env -> StringType -> Prop:=
   strcat s1' s2' -[ sigma ]-> strval s12
 | s_get_vval_s : forall s n l sigma v,
   l= vect_list_s (sigma s) ->
-  v=vect_parse n l string("") ->
+  v=vect_parse n l error_string ->
   get_vval_s s n -[sigma]->v
 | s_to_string:forall s sigma s',
   s' = strng (sigma s) ->
@@ -657,6 +678,10 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     strcmp s1 s2  ={sigma}=> s
 | e_tobol : forall v sigma,
     to_bool v ={ sigma }=> (boole (sigma v))
+| e_getvval_b : forall s n v l sigma,
+    l= vect_list_b (sigma s) ->
+    v= vect_parse n l error_bool ->
+    get_vval_b s n ={sigma}=>v
 where "B ={ S }=> B'" := (beval B S B').
 
 Definition get_def (l :cases): Stmt :=
@@ -664,16 +689,32 @@ match l with
 | def d => d
 | case n c => nullstmt
 end.
-Fixpoint list_cases_parse (n:nat) (l: list Stmt) (d: Stmt): Stmt :=
+Fixpoint list_cases_parse (n:nat) (l: list cases) (d: Stmt): Stmt :=
 match n, l with 
-| O, x::l' => x
+| O, x::l' => match x with 
+              |def s => s
+              |case n s => s 
+              end
 | O, other => get_def(def d)
 | S m, nil => get_def(def d)
 | S m, x::l' => list_cases_parse m l' d
 end.
 
 Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
-Check update. 
+Check update.
+
+Definition get_stmt (val:Val) :Stmt:=
+match val with
+| undecl => nullstmt
+| unassign => nullstmt
+| default => nullstmt
+| number n => nullstmt
+| integer i => nullstmt
+| bol b => nullstmt
+| str s => nullstmt
+| vector v => nullstmt
+| code s => s
+end.
 
 Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_def_nat: forall a i x sigma sigma',
@@ -704,6 +745,18 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_def_string0: forall a sigma sigma',
     sigma' = (update sigma a unassign) ->
     (def_string0 a) -{ sigma }-> sigma'
+| e_def_vector_n: forall s n l sigma sigma',
+    sigma' =(update sigma s (vector(vector_nat n l))) ->
+    def_vector s (vector_nat n l) -{sigma}->sigma'
+| e_def_vector_i: forall s n l sigma sigma',
+    sigma' =(update sigma s (vector(vector_int n l)))->
+    def_vector s (vector_int n l) -{sigma}->sigma'
+| e_def_vector_b: forall s n l sigma sigma',
+    sigma' =(update sigma s (vector(vector_bool n l)))->
+    def_vector s (vector_bool n l) -{sigma}->sigma'
+| e_def_vector_s: forall s n l sigma sigma',
+    sigma' =(update sigma s (vector(vector_str n l)))->
+    def_vector s (vector_str n l) -{sigma}->sigma'
 | e_assignment: forall a i x sigma sigma',
     i =[sigma]=> x ->
     sigma' = (update sigma a x) ->
@@ -772,13 +825,37 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     v = (list_cases_parse (abs_nat(IntType_to_Z n)) b nullstmt) ->
     v -{ sigma }-> sigma' ->
     switch a (b) -{ sigma }-> sigma'
-| e_strcpy : forall s1 s2 sigma sigma',
-    sigma' = update(sigma s1 svar(s2)) ->
+| e_strcpy : forall s1 s2 sigma sigma' s2',
+    s2' = sigma s2 ->
+    sigma' = (update sigma s1 s2') ->
     strcpy s1 s2 -{ sigma }-> sigma'
-| e_getfunc : forall s list s1 sigma sigma',
-    sigma'= (update )
+| e_getfunc : forall s s1 sigma sigma' st sglobe sigma'',
+    sigma'= (list_update sigma' s1 sigma) ->
+    st = get_stmt(sglobe s) ->
+    st -{ sigma'}-> sigma'' ->
+    get_func s s1 -{sigma}-> sigma''
+| e_null_stmt : forall sigma,
+    nullstmt -{sigma}-> sigma
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
+Reserved Notation "A =| sigma |=> B"(at level 0).
+Inductive Leval : Lang -> Env -> Env -> Prop :=
+| e_funcMain: forall s sigma sigma',
+    s -{sigma}->sigma' ->
+    (funcMain s) =| sigma |=> sigma'
+| e_funcs: forall s l st sigma sigma',
+    sigma' = (update sigma s (code st)) ->
+    (funcs s l st) =|sigma|=>sigma'
+| e_gdecl_int:
+| e_gdecl_nat:
+| e_gdecl_str:
+| e_gdecl_bool:
+| e_gdecl_int0:
+| e_gdecl_nat0:
+| e_gdecl_str0:
+| e_gdecl_bool0:
+| e_secv:
+where "s =| sigma |=> sigma'" :=(Leval s sigma sigma').
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "X :s:= A" := (sassignment X A ) (at level 50).
