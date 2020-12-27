@@ -846,16 +846,39 @@ Inductive Leval : Lang -> Env -> Env -> Prop :=
 | e_funcs: forall s l st sigma sigma',
     sigma' = (update sigma s (code st)) ->
     (funcs s l st) =|sigma|=>sigma'
-| e_gdecl_int:
-| e_gdecl_nat:
-| e_gdecl_str:
-| e_gdecl_bool:
-| e_gdecl_int0:
-| e_gdecl_nat0:
-| e_gdecl_str0:
-| e_gdecl_bool0:
-| e_secv:
+| e_gdecl_int: forall s i x sigma sigma',
+    i=[sigma]=>x ->
+    sigma' = (update sigma s x) ->
+    (gdecl_int s i) =|sigma|=> sigma'
+| e_gdecl_nat:forall s i x sigma sigma',
+    i=[sigma]=>x ->
+    sigma' = (update sigma s x) ->
+    (gdecl_nat s i) =|sigma|=> sigma'
+| e_gdecl_str:forall s i x sigma sigma',
+    i-[sigma]->x ->
+    sigma' = (update sigma s x) ->
+    (gdecl_str s i) =|sigma|=> sigma'
+| e_gdecl_bool:forall s i x sigma sigma',
+    i={sigma}=>x ->
+    sigma' = (update sigma s x) ->
+    (gdecl_bool s i) =|sigma|=> sigma'
+| e_gdecl_int0:forall s sigma sigma',
+    sigma' = (update sigma s unassign) ->
+    (gdecl_int0 s) =|sigma|=> sigma'
+| e_gdecl_nat0:forall s sigma sigma',
+    sigma' = (update sigma s unassign) ->
+    (gdecl_nat0 s) =|sigma|=> sigma
+| e_gdecl_str0:forall s sigma sigma',
+    sigma' = (update sigma s unassign) ->
+    (gdecl_str0 s) =|sigma|=> sigma
+| e_gdecl_bool0:forall s sigma sigma',
+    sigma' = (update sigma s unassign) ->
+    (gdecl_bool0 s) =|sigma|=> sigma
+| e_secv:forall s1 s2 sigma sigma' sigma'',
+    s1 =|sigma|=> sigma' ->
+    s2 =|sigma'|=> sigma''
 where "s =| sigma |=> sigma'" :=(Leval s sigma sigma').
+
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "X :s:= A" := (sassignment X A ) (at level 50).
