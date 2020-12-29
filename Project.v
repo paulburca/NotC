@@ -572,6 +572,7 @@ Definition mod_ErrorNat (n1 n2 : NatType) : NatType :=
 Reserved Notation "A -[ S ]-> N" (at level 60).
 Inductive seval : STREXP -> Env -> StringType -> Prop:=
 | s_const : forall s sigma, sconst s-[ sigma ]-> s
+| s_var : forall s sigma, svar s-[ sigma ]->strval(strng(sigma s))
 | s_cat : forall s1 s2 sigma s12 s1' s2',
   s1'= (streval s1 sigma) ->
   s2'= (streval s2 sigma) ->
@@ -1091,13 +1092,19 @@ Definition sum1 :=
   else {
     "sum" ::= "sum" +' 50 ;;
     "i" ::= "i" +' 15 ;;
-    "x" ::= "sum" /' "i" 
+    "x" ::= "sum" /' "i" ;;
+    string "qeq" := string("abc");;
+    string "eqe" := string("ddf");;
+    string "aaaa" := strcat("qeq", "eqe")
   }
   end';;
   -> "test" (("n" ; "sum" ; "i")) ;;
   switch' ("n"):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}};;
   int "y"[50]={1 ;2 ;3} ;;
-  int "a" := ("y"a[1])
+  int "a" := ("y"a[0]) ;;
+  bool "ghi" := (bool)"a" ;;
+  do {"a"::="a" +' 1} while("a"<' 2)
+  
 }.
 Check func' "test" (("abc"; "bcd"; "aac")):{
     "abc" ::= 3;;
@@ -1106,7 +1113,7 @@ Check func' "test" (("abc"; "bcd"; "aac")):{
 
 Example eval_sum1 :
   exists state,
-  sum1 =| env_globe |=> state /\ state "y" = vector (vector_int (abs_nat 50) (list_Z_to_list_IntType(cons 1 (cons 2 (cons 3 nil) ) ) ) ) /\ state.
+  sum1 =| env_globe |=> state /\ state "y" = vector (vector_int (abs_nat 50) (list_Z_to_list_IntType(cons 1 (cons 2 (cons 3 nil) ) ) ) ) /\ state "a" = 2 /\ state "ghi" = false.
 Proof.
 eexists.
 split.
@@ -1121,5 +1128,7 @@ split.
       eapply e_blet; eauto. eapply var. eapply var. trivial.
          eapply e_seq. eapply e_assignment; eauto. eapply add; eauto. eapply var. eapply var; eauto. eapply e_assignment; eauto. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
     ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_assignment; eauto. eapply const_int. eapply e_sassignment; eauto. eapply s_const. + unfold update_env. simpl. unfold update. simpl. 
-  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto. eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto. - unfold update. simpl. reflexivity.
+  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq. eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto. eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto.
+  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment; eauto. eapply add; eauto. eapply var; eauto. eapply const_int.
+  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. - split. unfold update. simpl. reflexivity. unfold update. simpl. split. reflexivity. reflexivity.
 Qed.  
