@@ -165,6 +165,7 @@ with cases:=
 | def: Stmt -> cases
 | case : nat -> Stmt -> cases.
 
+
 Inductive Val :=
 | undecl: Val
 | unassign: Val
@@ -174,13 +175,12 @@ Inductive Val :=
 | bol: BoolType -> Val
 | str: StringType -> Val
 | vector: vect -> Val
-| code: Stmt -> Val.
-
+| code: (list string) -> Stmt -> Val.
 Coercion number: NatType >-> Val.
 Coercion integer: IntType >-> Val.
 Coercion bol: BoolType >-> Val.
 Coercion str : StringType >-> Val.
-Coercion code: Stmt >-> Val.
+
 
 Definition abs_nat (z:Z) : nat :=
   match z with
@@ -210,6 +210,16 @@ match l with
           |error_nat => (abs_nat 0)::list_NatType_to_list_nat l'
           |num x'=> (x')::list_NatType_to_list_nat l'
           end
+end.
+Fixpoint list_nat_to_list_int (l:list nat):list Z:=
+match l with
+| nil => nil
+| x::l' =>  (Z_of_nat x)::list_nat_to_list_int l'
+end.
+Fixpoint list_Z_to_list_IntType (l:list Z): list IntType:=
+match l with
+| nil => nil
+| x::l' =>  nr x::  list_Z_to_list_IntType l'
 end.
 Fixpoint list_BoolType_to_list_nat (l:list BoolType): list nat :=
 match l with
@@ -258,7 +268,7 @@ match val with
               | vector_bool n b'=> list_sum(list_BoolType_to_list_nat(b'))
               | vector_str n s'=> list_sum(list_StrType_to_list_nat(s'))
               end
-| code s => 1
+| code l s => 1
 end.
 
 Definition integ (val : Val) : Z :=
@@ -292,7 +302,7 @@ match val with
               | vector_bool n b'=> Z_of_nat (list_sum(list_BoolType_to_list_nat(b')))
               | vector_str n s'=> Z_of_nat (list_sum(list_StrType_to_list_nat(s')))
               end
-| code s => 1
+| code l s => 1
 end.
 
 Definition boole (val : Val) : BoolType :=
@@ -323,7 +333,7 @@ match val with
               | vector_bool n b'=> true
               | vector_str n s'=> true
               end 
-| code s => true
+| code l s => true
 end.
 
 
@@ -373,7 +383,7 @@ match val with
                                             end
                                   end
               end
-| code s => "code"
+| code l s => "code"
 end.
 Definition vect_list_s (val :Val) :list StringType:=
 match val with
@@ -394,9 +404,36 @@ match val with
                                   | x::l => x::l
                                   end
               end
-| code s => nil
+| code l s => nil
 end
 .
+Definition vect_list_a (val :Val) :list IntType:=
+match val with
+| undecl=> error_int::nil
+| unassign=> error_int::nil
+| default=> error_int::nil
+| number n=> error_int::nil
+| integer i=> error_int::nil
+| bol b=> error_int::nil
+| str s=> error_int::nil
+| vector v=>  match v with
+              | error_vect => error_int::nil
+              | vector_int n i'=> match i' with
+                                  | nil => nil
+                                  | x::l => x::l
+                                  end
+              | vector_nat n n'=> match n' with
+                                  | nil => nil
+                                  | x::l => match x with
+                                            | error_nat => nr 0::list_Z_to_list_IntType(list_nat_to_list_int(list_NatType_to_list_nat l))
+                                            | num p=> (nr (Z_of_nat p))::list_Z_to_list_IntType(list_nat_to_list_int(list_NatType_to_list_nat l))
+                                            end
+                                  end
+              | vector_bool n b'=> error_int::nil
+              | vector_str n s'=>  error_int::nil
+              end
+| code l s => nil
+end.
 Definition vect_list_b (val :Val) :list BoolType:=
 match val with
 | undecl=> error_bool::nil
@@ -416,7 +453,7 @@ match val with
                                   end
               | vector_str n s'=>  error_bool::nil
               end
-| code s => nil
+| code l s => nil
 end
 .
 Definition Env := string -> Val.
@@ -435,14 +472,35 @@ match str with
 end.
 Definition update (env : Env) (str : string) (val : Val): Env :=
   fun str' => if (string_dec str str') then val else env str'.
-
+Fixpoint lists_parse (l: list string) (l1 : list string) (env:Env) (env1: Env):Env:=
+  match l,l1 with
+  | nil, nil => env1
+  | x::l', x1::l1' => lists_parse l' l1' env (update env1 x (env x1))
+  | nil, x::l' => env1
+  | x::l', nil => (fun y => undecl)
+   end
+.
 Fixpoint list_update (env : Env) (l:list string) (env1 : Env) :=
   match l with
   |c::l' => list_update (update env c (env1 c)) l' env1
   |nil => env
   end
 .
-
+Definition check_undecl (val:Val) : bool:=
+  match val with
+  | undecl=> true
+  | unassign=> false
+  | default=> false
+  | number n=> false
+  | integer i=> false
+  | bol b=> false
+  | str s=> false
+  | vector v=> false
+  | code l s => false
+  end.
+Definition update_env (env:Env) (env1:Env): Env:=
+  fun str => if( check_undecl(env1 str) ) then env str else (update env str (env1 str)) str
+.
 Compute env_loc "x".
 Inductive Lang := 
 | funcMain : Stmt -> Lang
@@ -471,6 +529,46 @@ Fixpoint concat (s1 s2 : string) : string :=
   | String c s1' => String c (concat s1' s2)
   end
 .
+
+Definition plus_ErrorNat (n1 n2 : NatType) : NatType :=
+  match n1, n2 with
+    | error_nat, _ => error_nat
+    | _, error_nat => error_nat
+    | num v1, num v2 => num (v1 + v2)
+    end.
+
+Definition sub_ErrorNat (n1 n2 : NatType) : NatType :=
+  match n1, n2 with
+    | error_nat, _ => error_nat
+    | _, error_nat => error_nat
+    | num n1, num n2 => if Nat.ltb n1 n2
+                        then error_nat
+                        else num (n1 - n2)
+    end.
+
+Definition mul_ErrorNat (n1 n2 : NatType) : NatType :=
+  match n1, n2 with
+    | error_nat, _ => error_nat
+    | _, error_nat => error_nat
+    | num v1, num v2 => num (v1 * v2)
+    end.
+
+Definition div_ErrorNat (n1 n2 : NatType) : NatType :=
+  match n1, n2 with
+    | error_nat, _ => error_nat
+    | _, error_nat => error_nat
+    | _, num 0 => error_nat
+    | num v1, num v2 => num (Nat.div v1 v2)
+    end.
+
+Definition mod_ErrorNat (n1 n2 : NatType) : NatType :=
+  match n1, n2 with
+    | error_nat, _ => error_nat
+    | _, error_nat => error_nat
+    | _, num 0 => error_nat
+    | num v1, num v2 => num (v1 - v2 * (Nat.div v1 v2))
+    end.
+
 Reserved Notation "A -[ S ]-> N" (at level 60).
 Inductive seval : STREXP -> Env -> StringType -> Prop:=
 | s_const : forall s sigma, sconst s-[ sigma ]-> s
@@ -558,7 +656,10 @@ Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
     to_int s1 =[ sigma ]=> (integ (sigma s1))
 | len: forall s sigma,
     strlen s =[ sigma ]=> integ(length s)
-
+| e_getvval_a : forall s n l sigma v,
+  l= vect_list_a (sigma s) ->
+  v=vect_parse n l error_int ->
+  get_vval_a s n =[sigma]=>v
 where "a =[ sigma ]=> n" := (aeval_int a sigma n).
 
 
@@ -581,6 +682,7 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
 | e_true : forall sigma, btrue ={ sigma }=> true
 | e_false : forall sigma, bfalse ={ sigma }=> false
 | e_var : forall v sigma, bvar v ={ sigma }=> (boole (sigma v))
+| e_val : forall v sigma, boolean v ={sigma}=> v
 | e_blt : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
@@ -689,15 +791,13 @@ match l with
 | def d => d
 | case n c => nullstmt
 end.
-Fixpoint list_cases_parse (n:nat) (l: list cases) (d: Stmt): Stmt :=
-match n, l with 
-| O, x::l' => match x with 
+Fixpoint list_cases_parse (n:nat) (l: list cases) : Stmt :=
+match l with 
+| x::l' => match x with 
               |def s => s
-              |case n s => s 
+              |case n' s => if(Nat.eqb n' n) then s else list_cases_parse n l'
               end
-| O, other => get_def(def d)
-| S m, nil => get_def(def d)
-| S m, x::l' => list_cases_parse m l' d
+| nil => nullstmt
 end.
 
 Reserved Notation "S -{ sigma }->  sigma'" (at level 60).
@@ -713,8 +813,22 @@ match val with
 | bol b => nullstmt
 | str s => nullstmt
 | vector v => nullstmt
-| code s => s
+| code l s => s
 end.
+
+Definition get_list (val : Val) : list string:=
+match val with
+| undecl => nil
+| unassign => nil
+| default => nil
+| number n => nil
+| integer i => nil
+| bol b => nil
+| str s => nil
+| vector v => nil
+| code l s => l
+end.
+
 
 Inductive eval : Stmt -> Env -> Env -> Prop :=
 | e_def_nat: forall a i x sigma sigma',
@@ -822,18 +936,21 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     dowhile st b -{ sigma }-> sigma'
 | e_switch : forall a b sigma n v sigma',
     a =[ sigma ]=> n ->
-    v = (list_cases_parse (abs_nat(IntType_to_Z n)) b nullstmt) ->
+    v = (list_cases_parse (abs_nat(IntType_to_Z n)) b ) ->
     v -{ sigma }-> sigma' ->
     switch a (b) -{ sigma }-> sigma'
 | e_strcpy : forall s1 s2 sigma sigma' s2',
     s2' = sigma s2 ->
     sigma' = (update sigma s1 s2') ->
     strcpy s1 s2 -{ sigma }-> sigma'
-| e_getfunc : forall s s1 sigma sigma' st sglobe sigma'',
-    sigma'= (list_update sigma' s1 sigma) ->
-    st = get_stmt(sglobe s) ->
+| e_getfunc : forall s l1 sigma sigma' st sigma'' sigma''' l sigma'''',
+    l = (get_list (sigma s) ) ->
+    sigma'= (lists_parse l l1 sigma env_loc) ->
+    st = get_stmt(sigma s) ->
     st -{ sigma'}-> sigma'' ->
-    get_func s s1 -{sigma}-> sigma''
+    sigma''' = (update_env sigma sigma'') ->
+    sigma'''' = (lists_parse l1 l sigma''' env_loc) ->
+    get_func s l1 -{sigma}-> sigma''''
 | e_null_stmt : forall sigma,
     nullstmt -{sigma}-> sigma
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
@@ -844,7 +961,7 @@ Inductive Leval : Lang -> Env -> Env -> Prop :=
     s -{sigma}->sigma' ->
     (funcMain s) =| sigma |=> sigma'
 | e_funcs: forall s l st sigma sigma',
-    sigma' = (update sigma s (code st)) ->
+    sigma' = (update sigma s (code l st)) ->
     (funcs s l st) =|sigma|=>sigma'
 | e_gdecl_int: forall s i x sigma sigma',
     i=[sigma]=>x ->
@@ -876,7 +993,8 @@ Inductive Leval : Lang -> Env -> Env -> Prop :=
     (gdecl_bool0 s) =|sigma|=> sigma
 | e_secv:forall s1 s2 sigma sigma' sigma'',
     s1 =|sigma|=> sigma' ->
-    s2 =|sigma'|=> sigma''
+    s2 =|sigma'|=> sigma'' ->
+    (secv s1 s2) =| sigma |=> sigma''
 where "s =| sigma |=> sigma'" :=(Leval s sigma sigma').
 
 Notation "X ::= A" := (assignment X A ) (at level 50).
@@ -916,7 +1034,6 @@ Notation "'(string)'  A " := (to_string A)( at level 35).
 Notation "'func'' main():{ C }" := (funcMain C )(at level 97).
 Notation "'func'' A (( B1 ; B2 ; .. ; Bn )):{ C }" := (funcs A (cons B1 (cons B2 .. (cons Bn nil) ..)) C )(at level 97).
 Notation "'func'' A (( B )):{ C }" := (funcs A (cons B nil) C )(at level 97).
-Notation "'func'' A (()):{ C }" := (funcs A C )(at level 97).
 Notation "A ';;'' B" := (secv A B)(at level 96).
 Notation "'->' A (( B1 ; B2 ; .. ; Bn )) " := (get_func A (cons B1 (cons B2 .. (cons Bn nil) ..)))(at level 91).
 Notation "'int' A [ B ]={ C1 ; C2 ; .. ; Cn }" := ( def_vector A ( vector_int B (cons int(C1) (cons int(C2) .. (cons int(Cn) nil) ..) ) ) )(at level 50).
@@ -957,6 +1074,52 @@ Compute func' "test" (( "text1" ; "text2" )):{
           }.
 
 
+Definition sum1 :=
+  func' "test" (("abc"; "bcd"; "aac")):{
+    "abc" ::= 3;;
+    "bcd" :s:= string("sss")
+  } ;;'
+  func' main():{
+  int "n" := 1 ;;
+  int "i" := 1 ;; 
+  int "sum" := 0 ;;
+  int "x" := 0 ;;
+  If ( "i" <=' "n" ) then {
+          "sum" ::= "sum" +' "i" ;;
+          "i" ::= "i" +' 1
+        }
+  else {
+    "sum" ::= "sum" +' 50 ;;
+    "i" ::= "i" +' 15 ;;
+    "x" ::= "sum" /' "i" 
+  }
+  end';;
+  -> "test" (("n" ; "sum" ; "i")) ;;
+  switch' ("n"):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}};;
+  int "y"[50]={1 ;2 ;3} ;;
+  int "a" := ("y"a[1])
+}.
+Check func' "test" (("abc"; "bcd"; "aac")):{
+    "abc" ::= 3;;
+    "bcd" :s:= "sss" 
+  }. 
 
-
-
+Example eval_sum1 :
+  exists state,
+  sum1 =| env_globe |=> state /\ state "y" = vector (vector_int (abs_nat 50) (list_Z_to_list_IntType(cons 1 (cons 2 (cons 3 nil) ) ) ) ) /\ state.
+Proof.
+eexists.
+split.
+  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  eapply e_funcMain. eapply e_seq.
+    + eapply e_seq.
+     ++ eapply e_seq. unfold update. simpl.
+        +++ eapply e_seq.
+            ++++ eapply e_seq. eapply e_seq.  eapply e_def_int; eauto. eapply const_int.  
+            eapply e_def_int; eauto. eapply const_int. eapply e_def_int;eauto. eapply const_int.
+            ++++ eapply e_def_int; eauto. eapply const_int.
+        +++ eapply e_iftrue2.
+      eapply e_blet; eauto. eapply var. eapply var. trivial.
+         eapply e_seq. eapply e_assignment; eauto. eapply add; eauto. eapply var. eapply var; eauto. eapply e_assignment; eauto. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
+    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_assignment; eauto. eapply const_int. eapply e_sassignment; eauto. eapply s_const. + unfold update_env. simpl. unfold update. simpl. 
+  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto. eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto. - unfold update. simpl. reflexivity.
+Qed.  
