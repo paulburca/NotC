@@ -483,10 +483,49 @@ match val with
 | vector v=>false
 | code l c=>false
 end.
+
+Definition eq_vals (val1:Val) (val2:Val) :=
+match val1 with
+| undecl =>  match val2 with
+              | undecl => true
+              | _ => false
+              end
+| unassign =>match val2 with
+              | unassign => true
+              | _ => false
+              end
+| default=>match val2 with
+              | default => true
+              | _ => false
+              end
+| number n=>match val2 with
+              | number n'=> true
+              | _ => false
+              end
+| integer i=>match val2 with
+              | integer i'=> true
+              | _ => false
+              end
+| bol b=>match val2 with
+              | bol b'=> true
+              | _ => false
+              end
+| str s=>match val2 with
+              | str s'=> true
+              | _ => false
+              end
+| vector v=>match val2 with
+              | vector v'=> true
+              | _ => false
+              end
+| code l c=>match val2 with
+              | code l' c'=> true
+              | _ => false
+              end
+end.
 Definition update (env : Env) (str : string) (val : Val): Env :=
-  fun str' => if (string_dec str str') 
-                then if( is_undecl (env str) ) then else env str'
-            else env str'.
+  fun str' => if (string_dec str str') then val else env str'.
+
 Fixpoint lists_parse (l: list string) (l1 : list string) (env:Env) (env1: Env):Env:=
   match l,l1 with
   | nil, nil => env1
@@ -501,20 +540,9 @@ Fixpoint list_update (env : Env) (l:list string) (env1 : Env) :=
   |nil => env
   end
 .
-Definition check_undecl (val:Val) : bool:=
-  match val with
-  | undecl=> true
-  | unassign=> false
-  | default=> false
-  | number n=> false
-  | integer i=> false
-  | bol b=> false
-  | str s=> false
-  | vector v=> false
-  | code l s => false
-  end.
+
 Definition update_env (env:Env) (env1:Env): Env:=
-  fun str => if( check_undecl(env1 str) ) then env str else (update env str (env1 str)) str
+  fun str => if( is_undecl(env1 str) ) then env str else (update env str (env1 str)) str
 .
 Compute env_loc "x".
 Inductive Lang := 
@@ -863,8 +891,8 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     i-[sigma]->x ->
     sigma' = (update sigma a x) ->
     (def_string a i) -{ sigma }-> sigma'
-| e_def_nat0: forall a sigma sigma' x,
-    sigma' = (update sigma a x) ->
+| e_def_nat0: forall a sigma sigma' ,
+    sigma' = (update sigma a unassign) ->
     (def_nat0 a) -{ sigma }-> sigma' 
 | e_def_int0: forall a sigma sigma',
     sigma' = (update sigma a unassign) ->
@@ -888,14 +916,17 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     sigma' =(update sigma s (vector(vector_str n l)))->
     def_vector s (vector_str n l) -{sigma}->sigma'
 | e_assignment: forall a i x sigma sigma',
+    (negb (is_undecl(sigma a)))={ sigma }=> true ->
     i =[sigma]=> x ->
     sigma' = (update sigma a x) ->
     (assignment a i) -{ sigma }-> sigma'
 | e_bassignment: forall a i x sigma sigma',
+    (negb (is_undecl(sigma a)))={ sigma }=> true ->
     i ={sigma}=> x ->
     sigma' = (update sigma a x) ->
     (bassignment a i) -{ sigma }-> sigma'
 | e_sassignment: forall a i x sigma sigma',
+    (negb (is_undecl(sigma a)))={ sigma }=> true ->
     i -[sigma]-> x ->
     sigma' = (update sigma a x) ->
     (sassignment a i) -{ sigma }-> sigma'
@@ -965,7 +996,7 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     st = get_stmt(sigma s) ->
     st -{ sigma'}-> sigma'' ->
     sigma''' = (update_env sigma sigma'') ->
-    sigma'''' = (lists_parse l1 l sigma''' env_loc) ->
+    sigma'''' =(lists_parse l1 l sigma''' env_loc) ->
     get_func s l1 -{sigma}-> sigma''''
 | e_null_stmt : forall sigma,
     nullstmt -{sigma}-> sigma
@@ -1134,7 +1165,7 @@ Example eval_sum1 :
 Proof.
 eexists.
 split.
-  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  eapply e_funcMain. eapply e_seq.
+  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_funcMain. eapply e_seq.
     + eapply e_seq.
      ++ eapply e_seq. unfold update. simpl.
         +++ eapply e_seq.
@@ -1143,9 +1174,9 @@ split.
             ++++ eapply e_def_int; eauto. eapply const_int.
         +++ eapply e_iftrue2.
       eapply e_blet; eauto. eapply var. eapply var. trivial.
-         eapply e_seq. eapply e_assignment; eauto. eapply add; eauto. eapply var. eapply var; eauto. eapply e_assignment; eauto. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
-    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_assignment; eauto. eapply const_int. eapply e_sassignment; eauto. eapply s_const. eapply e_assignment; eauto. eapply const_int. + unfold update_env. simpl. unfold update. simpl. 
+         eapply e_seq. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto. eapply var. eapply var; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
+    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. eapply e_sassignment; eauto. simpl. eapply e_val. eapply s_const. eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. + unfold update_env. simpl. unfold update. simpl. 
   eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq. eapply e_seq. eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto. eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto.
-  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment; eauto. eapply add; eauto. eapply var; eauto. eapply const_int.
-  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. eapply e_bassignment; eauto. eapply e_xor_true_ft;eauto. eapply e_var;eauto. eapply e_val;eauto. - unfold update. simpl. split. reflexivity. split. reflexivity. reflexivity.
+  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto. simpl.  eapply var; eauto. eapply const_int.
+  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. eapply e_bassignment; eauto. simpl. eapply e_val. eapply e_xor_true_ft;eauto. eapply e_var;eauto. eapply e_val;eauto. - unfold update. simpl. split. reflexivity. split. reflexivity. reflexivity.
 Qed.  
