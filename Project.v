@@ -305,7 +305,7 @@ match val with
 | code l s => 1
 end.
 
-Definition boole (val : Val) : BoolType :=
+Definition boole (val : Val) : bool :=
 match val with
 | undecl=> false
 | unassign=> false
@@ -1004,10 +1004,13 @@ where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
 Reserved Notation "A =| sigma |=> B"(at level 0).
 Inductive Leval : Lang -> Env -> Env -> Prop :=
-| e_funcMain: forall s sigma sigma',
-    s -{sigma}->sigma' ->
-    (funcMain s) =| sigma |=> sigma'
+| e_funcMain: forall s sigma sigma' sigma'',
+    (is_undecl (sigma "main")) ={sigma}=> true ->
+    sigma' =(update sigma "main" (code nil s)) ->
+    s -{sigma'}->sigma'' ->
+    (funcMain s) =| sigma |=> sigma''
 | e_funcs: forall s l st sigma sigma',
+    (is_undecl (sigma "main")) ={sigma}=> true->
     sigma' = (update sigma s (code l st)) ->
     (funcs s l st) =|sigma|=>sigma'
 | e_gdecl_int: forall s i x sigma sigma',
@@ -1165,7 +1168,7 @@ Example eval_sum1 :
 Proof.
 eexists.
 split.
-  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_funcMain. eapply e_seq.
+  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_val;eauto. eapply e_funcMain; eauto. simpl. eapply e_val. eapply e_seq.
     + eapply e_seq.
      ++ eapply e_seq. unfold update. simpl.
         +++ eapply e_seq.
