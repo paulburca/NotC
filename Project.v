@@ -974,8 +974,7 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     forcontent b st s1 -{ sigma }-> sigma'
 | e_dowhile_true : forall st b sigma sigma' sigma'',
     st -{ sigma }-> sigma' ->
-    b ={ sigma' }=> true ->
-    st -{ sigma' }-> sigma'' ->
+    while b st -{ sigma' }-> sigma'' ->
     dowhile st b -{ sigma }-> sigma'
 | e_dowhile_false : forall st b sigma sigma',
     st -{ sigma }-> sigma' ->
