@@ -404,7 +404,7 @@ match val with
                                   | x::l => x::l
                                   end
               end
-| code l s => nil
+| code l s => error_string::nil
 end
 .
 Definition vect_list_a (val :Val) :list IntType:=
@@ -432,7 +432,7 @@ match val with
               | vector_bool n b'=> error_int::nil
               | vector_str n s'=>  error_int::nil
               end
-| code l s => nil
+| code l s =>error_int::nil
 end.
 Definition vect_list_b (val :Val) :list BoolType:=
 match val with
@@ -453,7 +453,7 @@ match val with
                                   end
               | vector_str n s'=>  error_bool::nil
               end
-| code l s => nil
+| code l s => error_bool::nil
 end
 .
 Definition Env := string -> Val.
@@ -573,43 +573,41 @@ Fixpoint concat (s1 s2 : string) : string :=
   end
 .
 
-Definition plus_ErrorNat (n1 n2 : NatType) : NatType :=
+Definition plus_ErrorInt (n1 n2 : IntType) : IntType :=
   match n1, n2 with
-    | error_nat, _ => error_nat
-    | _, error_nat => error_nat
-    | num v1, num v2 => num (v1 + v2)
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | nr v1, nr v2 => nr (v1 + v2)
     end.
 
-Definition sub_ErrorNat (n1 n2 : NatType) : NatType :=
+Definition sub_ErrorInt (n1 n2 : IntType) : IntType :=
   match n1, n2 with
-    | error_nat, _ => error_nat
-    | _, error_nat => error_nat
-    | num n1, num n2 => if Nat.ltb n1 n2
-                        then error_nat
-                        else num (n1 - n2)
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | nr n1, nr n2 => nr (n1 - n2)
     end.
 
-Definition mul_ErrorNat (n1 n2 : NatType) : NatType :=
+Definition mul_ErrorInt (n1 n2 : IntType) : IntType :=
   match n1, n2 with
-    | error_nat, _ => error_nat
-    | _, error_nat => error_nat
-    | num v1, num v2 => num (v1 * v2)
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | nr v1, nr v2 => nr (v1 * v2)
     end.
 
-Definition div_ErrorNat (n1 n2 : NatType) : NatType :=
+Definition div_ErrorInt (n1 n2 : IntType) : IntType :=
   match n1, n2 with
-    | error_nat, _ => error_nat
-    | _, error_nat => error_nat
-    | _, num 0 => error_nat
-    | num v1, num v2 => num (Nat.div v1 v2)
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | _, nr 0 => error_int
+    | nr v1, nr v2 => nr (Z.div v1 v2)
     end.
 
-Definition mod_ErrorNat (n1 n2 : NatType) : NatType :=
+Definition mod_ErrorInt (n1 n2 : IntType) : IntType :=
   match n1, n2 with
-    | error_nat, _ => error_nat
-    | _, error_nat => error_nat
-    | _, num 0 => error_nat
-    | num v1, num v2 => num (v1 - v2 * (Nat.div v1 v2))
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | _, nr 0 => error_int
+    | nr v1, nr v2 => nr (v1 - v2 * (Z.div v1 v2))
     end.
 
 Reserved Notation "A -[ S ]-> N" (at level 60).
@@ -657,35 +655,35 @@ Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
     a2 =[ sigma ]=> i2 ->
     v1 = (integ i1) ->
     v2 = (integ i2) ->
-    n = v1 + v2 ->
+    n = plus_ErrorInt v1 v2 ->
     a1 +' a2 =[sigma]=> n
 | times : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
     v1 = (integ i1) ->
     v2 = (integ i2) ->
-    n = v1 * v2 ->
+    n = mul_ErrorInt v1 v2 ->
     a1 *' a2 =[sigma]=> n
 | dec: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
     v1 = (integ i1) ->
     v2 = (integ i2) ->
-    n =  v1 - v2 ->
+    n =  sub_ErrorInt v1 v2 ->
     a1 -' a2 =[sigma]=> n
 | div : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
     v1 =( integ i1) ->
     v2 = (integ i2) ->
-    n = ( v1 / v2) ->
+    n = ( div_ErrorInt v1 v2) ->
     a1 /' a2 =[sigma]=> n
 | modu: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
     v1 = (integ i1) ->
     v2 = (integ i2) ->
-    n = (Z.modulo v1 v2) ->
+    n = (mod_ErrorInt v1 v2) ->
     a1 %' a2 =[sigma]=> n
 | pow: forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
