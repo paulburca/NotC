@@ -191,7 +191,7 @@ Definition abs_nat (z:Z) : nat :=
 Fixpoint list_ascii_to_list_nat (l:list ascii):list nat:=
 match l with
 | nil =>  nil
-| x::l' => (nat_of_ascii x)::list_ascii_to_list_nat l'
+| x::l' => (Nat.sub (nat_of_ascii x) 48)::list_ascii_to_list_nat l'
 end.
 
 Fixpoint list_int_to_list_nat (l:list IntType): list nat :=
@@ -609,6 +609,12 @@ Definition mod_ErrorInt (n1 n2 : IntType) : IntType :=
     | _, nr 0 => error_int
     | nr v1, nr v2 => nr (v1 - v2 * (Z.div v1 v2))
     end.
+Definition pow_ErrorInt (n1 n2 : IntType) : IntType :=
+  match n1, n2 with
+    | error_int, _ => error_int
+    | _, error_int => error_int
+    | nr v1, nr v2 => nr (Z.pow v1 v2)
+    end.
 
 Reserved Notation "A -[ S ]-> N" (at level 60).
 Inductive seval : STREXP -> Env -> StringType -> Prop:=
@@ -690,7 +696,7 @@ Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
     a2 =[ sigma ]=> i2 ->
     v1 = (integ i1) ->
     v2 = (integ i2) ->
-    n =( Z.pow v1 v2) ->
+    n =( pow_ErrorInt v1 v2) ->
     i1 ^' i2 =[sigma]=>n
 | tonat : forall s1 sigma,
     to_nat s1 =[ sigma ]=> (integ(sigma s1))
@@ -1146,13 +1152,23 @@ Definition sum1 :=
   }
   end';;
   -> "test" (("n" ; "sum" ; "i")) ;;
-  switch' ("n"):{case (1): {If(1=='1) then {nat "AA" := 7} else {int "BB" := 7} end'} ; case(2): {If(1=='1) then {int "CC":= 13}end'} ; default : {bool "3" := true}};;
+  switch' ("n"):{
+    case (1): {
+       If(1=='1) then {nat "AA" := 7} 
+        else {int "BB" := 7} end'
+    } ;
+    case(2): {
+       If(1=='1) then {int "CC":= 13}end'
+    } ;
+    default : {bool "3" := true}
+  };;
   int "y"[50]={1 ;2 ;3} ;;
   int "a" := ("y"a[0]) ;;
   bool "ghi" := (bool)"a" ;;
-  do {"a"::="a" +' 1} while("a"<' 2) ;;
+  do {
+  "a"::="a" +' 1
+  } while("a"<' 2) ;;
   "ghi" :b:= ("ghi" xor' true)
-  
 }.
 Check func' "test" (("abc"; "bcd"; "aac")):{
     "abc" ::= 3;;
@@ -1165,7 +1181,7 @@ Example eval_sum1 :
 Proof.
 eexists.
 split.
-  -unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_val;eauto. eapply e_funcMain; eauto. simpl. eapply e_val. eapply e_seq.
+  - unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_val;eauto. eapply e_funcMain; eauto. simpl. eapply e_val. eapply e_seq.
     + eapply e_seq.
      ++ eapply e_seq. unfold update. simpl.
         +++ eapply e_seq.
@@ -1174,9 +1190,21 @@ split.
             ++++ eapply e_def_int; eauto. eapply const_int.
         +++ eapply e_iftrue2.
       eapply e_blet; eauto. eapply var. eapply var. trivial.
-         eapply e_seq. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto. eapply var. eapply var; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
-    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. eapply e_sassignment; eauto. simpl. eapply e_val. eapply s_const. eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. + unfold update_env. simpl. unfold update. simpl. 
-  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq. eapply e_seq. eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto. eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto.
-  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto. simpl.  eapply var; eauto. eapply const_int.
-  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. eapply e_bassignment; eauto. simpl. eapply e_val. eapply e_xor_true_ft;eauto. eapply e_var;eauto. eapply e_val;eauto. - unfold update. simpl. split. reflexivity. split. reflexivity. reflexivity.
+         eapply e_seq. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto.
+         eapply var. eapply var; eauto. eapply e_assignment; eauto. simpl. eapply e_val. 
+        eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. 
+        trivial.
+    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. 
+    eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. eapply e_sassignment; 
+    eauto. simpl. eapply e_val. eapply s_const. eapply e_assignment; eauto. simpl. eapply e_val.
+     eapply const_int. + unfold update_env. simpl. unfold update. simpl. 
+  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq. eapply e_seq. 
+  eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto.
+   eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto.
+  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment;
+  eauto. simpl. eapply e_val. eapply add; eauto. simpl.  eapply var; eauto. eapply const_int.
+  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. 
+  eapply e_bassignment; eauto. simpl. eapply e_val. eapply e_xor_true_ft;eauto. eapply e_var;
+  eauto. eapply e_val;eauto. 
+  - unfold update. simpl. split. reflexivity. split. reflexivity. reflexivity.
 Qed.  
