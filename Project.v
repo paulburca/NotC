@@ -570,13 +570,7 @@ match e1 with
              |pair g' l' => pair (update_env g g') l
              end
 end.
-Fixpoint lists_parse (l: list string) (l1 : list string) (env:Envs) (env1: Envs):Envs:=
-  match l,l1 with
-  | nil, nil => pair (get_globe env) (get_local env1)
-  | x::l', x1::l1' => if(negb (isglb env x1)) then lists_parse l' l1' env (update_local env1 x ( (get_local env) x1)) else lists_parse l' l1' env env1
-  | _, _ => envs0 
-  end
-.
+
 Fixpoint lists_parse_i (l: list string) (l1 : list string) (env:Envs) (env1: Envs):Envs:=
   match l,l1 with
   | nil, nil => env1
@@ -1266,7 +1260,3 @@ eapply e_blt;eauto. eapply var. eapply const_int. simpl. trivial. eapply e_bassi
 eapply e_xor_false; eauto. eapply e_var. simpl.  eapply e_val.
 - simpl. unfold update. simpl. split. trivial. trivial.
 Qed.
-
-
-
-
