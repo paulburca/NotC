@@ -316,7 +316,7 @@ match val with
             end
 | integer i=> match i with 
             | error_int => false
-            | nr i' =>  if(Z.leb i' 0 ) then true else false
+            | nr i' =>  if(Z.leb i' 0 ) then false else true
             end
 | bol b=> match b with
           | error_bool => false
@@ -457,32 +457,41 @@ match val with
 end
 .
 Definition Env := string -> Val.
+Inductive Envs := 
+|pair: Env -> Env -> Envs.
 Definition env_loc : Env := fun x => undecl.
 Definition env_globe : Env := fun x => undecl.
-Definition streval (str:STREXP) (env:Env):string:=
+Definition newenvs (e:Envs): Envs:= 
+match e with
+| pair e1 e2 => pair env_globe env_loc
+end.
+Definition envs0 := pair env_loc env_globe. 
+Definition is_undecl (val:Val) :=
+match val with
+| undecl =>true
+| _ => false
+end.
+Definition isglb(e:Envs)(s:string):bool:=
+match e with
+|pair e1 e2 => if(is_undecl(e2 s)) then true else false
+end.
+Definition gl(e:Envs)(s:string):Env:=
+match e with
+|pair e1 e2 => if(isglb e s) then e1 else e2
+end.
+
+Definition streval (str:STREXP) (env:Envs):string:=
 match str with
-| svar s => strng (env s)
+| svar s => strng ((gl env s) s)
 | sconst s => match s with
               | error_string => ""
               | strval s' => s'
               end
-| get_vval_s s n => vect_s_parse n (vect_list_s(env s)) string("")
+| get_vval_s s n => vect_s_parse n (vect_list_s((gl env s) s)) string("")
 | strcat s1 s2 => ( s1 ++ s2)
-| to_string s => strng(env s)
+| to_string s => strng(( gl env s) s)
 end.
 
-Definition is_undecl (val:Val) :=
-match val with
-| undecl =>true
-| unassign =>false
-| default=>false
-| number n=>false
-| integer i=>false
-| bol b=>false
-| str s=>false
-| vector v=>false
-| code l c=>false
-end.
 
 Definition eq_vals (val1:Val) (val2:Val) :=
 match val1 with
@@ -525,24 +534,55 @@ match val1 with
 end.
 Definition update (env : Env) (str : string) (val : Val): Env :=
   fun str' => if (string_dec str str') then val else env str'.
-
-Fixpoint lists_parse (l: list string) (l1 : list string) (env:Env) (env1: Env):Env:=
-  match l,l1 with
-  | nil, nil => env1
-  | x::l', x1::l1' => lists_parse l' l1' env (update env1 x (env x1))
-  | nil, x::l' => env1
-  | x::l', nil => (fun y => undecl)
-   end
+Definition update_env (env:Env) (env1:Env): Env:=
+  fun str => if( is_undecl(env1 str) ) then env str else (update env str (env1 str)) str
 .
+Definition update_envs (e:Envs)(s: string)(v:Val):Envs:=
+match e with
+| pair g l=>  if(isglb e s) then pair (update g s v) l else pair g (update l s v)
+end.
+
 Fixpoint list_update (env : Env) (l:list string) (env1 : Env) :=
   match l with
   |c::l' => list_update (update env c (env1 c)) l' env1
   |nil => env
   end
 .
-
-Definition update_env (env:Env) (env1:Env): Env:=
-  fun str => if( is_undecl(env1 str) ) then env str else (update env str (env1 str)) str
+Definition update_local (e:Envs)(s: string)(v:Val):Envs:=
+match e with
+| pair g l=> pair g (update l s v)
+end.
+Definition update_global (e:Envs)(s: string)(v:Val):Envs:=
+match e with
+| pair g l=> pair (update g s v) l 
+end.
+Definition get_globe(e:Envs):Env:=
+match e with
+| pair g l=> g
+end.
+Definition get_local(e:Envs):Env:=
+match e with
+| pair g l=> l
+end.
+Definition update_env_g (e1 e2:Envs):Envs:=
+match e1 with
+| pair g l=> match e2 with
+             |pair g' l' => pair (update_env g g') l
+             end
+end.
+Fixpoint lists_parse (l: list string) (l1 : list string) (env:Envs) (env1: Envs):Envs:=
+  match l,l1 with
+  | nil, nil => pair (get_globe env) (get_local env1)
+  | x::l', x1::l1' => if(negb (isglb env x1)) then lists_parse l' l1' env (update_local env1 x ( (get_local env) x1)) else lists_parse l' l1' env env1
+  | _, _ => envs0 
+  end
+.
+Fixpoint lists_parse_i (l: list string) (l1 : list string) (env:Envs) (env1: Envs):Envs:=
+  match l,l1 with
+  | nil, nil => env1
+  | x::l', x1::l1' => lists_parse_i l' l1' env (update_envs env1 x ((gl env x1) x1)) 
+  | _, _ => envs0 
+  end
 .
 Compute env_loc "x".
 Inductive Lang := 
@@ -617,29 +657,29 @@ Definition pow_ErrorInt (n1 n2 : IntType) : IntType :=
     end.
 
 Reserved Notation "A -[ S ]-> N" (at level 60).
-Inductive seval : STREXP -> Env -> StringType -> Prop:=
+Inductive seval : STREXP -> Envs -> StringType -> Prop:=
 | s_const : forall s sigma, sconst s-[ sigma ]-> s
-| s_var : forall s sigma, svar s-[ sigma ]->strval(strng(sigma s))
+| s_var : forall s sigma, svar s-[ sigma ]->strval(strng((gl sigma s) s))
 | s_cat : forall s1 s2 sigma s12 s1' s2',
   s1'= (streval s1 sigma) ->
   s2'= (streval s2 sigma) ->
   s12 = (concat s1' s2') ->
   strcat s1' s2' -[ sigma ]-> strval s12
 | s_get_vval_s : forall s n l sigma v,
-  l= vect_list_s (sigma s) ->
+  l= vect_list_s ((gl sigma s) s) ->
   v=vect_parse n l error_string ->
   get_vval_s s n -[sigma]->v
 | s_to_string:forall s sigma s',
-  s' = strng (sigma s) ->
+  s' = strng ((gl sigma s) s) ->
   to_string s -[sigma]-> strval s'
 where "a -[ sigma ]-> s" := (seval a sigma s).
 
 Reserved Notation "A =[ S ]=> N" (at level 60).
 
-Fixpoint length (s : string) : nat :=
+Fixpoint length_str (s : string) : nat :=
   match s with
   | EmptyString => 0
-  | String c s' => S (length s')
+  | String c s' => S (length_str s')
   end.
 Definition inttype_to_z (i:IntType):Z:=
 match i with
@@ -652,10 +692,11 @@ match n with
          | num n' => n' 
          end
 .
-Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
+
+Inductive aeval_int : AExp -> Envs -> IntType-> Prop :=
 | const_nat : forall  n sigma, anum n =[ sigma ]=> integ n (* <n,sigma> => <n> *) 
 | const_int : forall  n sigma, aint n =[ sigma ]=>  n (* <n,sigma> nat=> <n> *) 
-| var : forall v sigma, avar v =[ sigma ]=> ( integ(sigma v)) (* <v,sigma> => sigma(x) *)
+| var : forall v sigma, avar v =[ sigma ]=> ( integ((gl sigma v)v)) (* <v,sigma> => sigma(x) *)
 | add : forall a1 a2 i1 i2 v1 v2 sigma n,
     a1 =[ sigma ]=> i1 ->
     a2 =[ sigma ]=> i2 ->
@@ -699,13 +740,13 @@ Inductive aeval_int : AExp -> Env -> IntType-> Prop :=
     n =( pow_ErrorInt v1 v2) ->
     i1 ^' i2 =[sigma]=>n
 | tonat : forall s1 sigma,
-    to_nat s1 =[ sigma ]=> (integ(sigma s1))
+    to_nat s1 =[ sigma ]=> (integ((gl sigma s1) s1))
 | toint : forall s1 sigma,
-    to_int s1 =[ sigma ]=> (integ (sigma s1))
+    to_int s1 =[ sigma ]=> (integ ((gl sigma s1)s1))
 | len: forall s sigma,
-    strlen s =[ sigma ]=> integ(length s)
+    strlen s =[ sigma ]=> integ(length_str s)
 | e_getvval_a : forall s n l sigma v,
-  l= vect_list_a (sigma s) ->
+  l= vect_list_a ((gl sigma s) s) ->
   v=vect_parse n l error_int ->
   get_vval_a s n =[sigma]=>v
 where "a =[ sigma ]=> n" := (aeval_int a sigma n).
@@ -726,10 +767,10 @@ end.
 Definition stringeq (s1 s2:string) :bool:=
 if(string_dec s1 s2) then true else false
 .
-Inductive beval : BExp -> Env -> BoolType -> Prop :=
+Inductive beval : BExp -> Envs -> BoolType -> Prop :=
 | e_true : forall sigma, btrue ={ sigma }=> true
 | e_false : forall sigma, bfalse ={ sigma }=> false
-| e_var : forall v sigma, bvar v ={ sigma }=> (boole (sigma v))
+| e_var : forall v sigma, bvar v ={ sigma }=> (boole ((gl sigma v) v))
 | e_val : forall v sigma, boolean v ={sigma}=> v
 | e_blt : forall a1 a2 i1 i2 v1 v2 sigma b,
     a1 =[ sigma ]=> i1 ->
@@ -827,9 +868,9 @@ Inductive beval : BExp -> Env -> BoolType -> Prop :=
     s = stringeq (StringType_to_string s11) (StringType_to_string s22) ->
     strcmp s1 s2  ={sigma}=> s
 | e_tobol : forall v sigma,
-    to_bool v ={ sigma }=> (boole (sigma v))
+    to_bool v ={ sigma }=> (boole (( gl sigma v) v))
 | e_getvval_b : forall s n v l sigma,
-    l= vect_list_b (sigma s) ->
+    l= vect_list_b ((gl sigma s) s) ->
     v= vect_parse n l error_bool ->
     get_vval_b s n ={sigma}=>v
 where "B ={ S }=> B'" := (beval B S B').
@@ -877,62 +918,61 @@ match val with
 | code l s => l
 end.
 
-
-Inductive eval : Stmt -> Env -> Env -> Prop :=
+Inductive eval : Stmt -> Envs -> Envs -> Prop :=
 | e_def_nat: forall a i x sigma sigma',
     i=[sigma]=>x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_local sigma a x) ->
     (def_nat a i) -{ sigma }-> sigma' 
 | e_def_int: forall a i x sigma sigma',
     i=[sigma]=>x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_local sigma a x) ->
     (def_int a i) -{ sigma }-> sigma'  
 | e_def_bool: forall a i x sigma sigma',
     i={sigma}=>x ->
-    sigma' = (update sigma a x ) ->
+    sigma' = (update_local sigma a x ) ->
     (def_bool a i) -{ sigma }-> sigma'
 | e_def_string: forall a i x sigma sigma',
     i-[sigma]->x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_local sigma a x) ->
     (def_string a i) -{ sigma }-> sigma'
 | e_def_nat0: forall a sigma sigma' ,
-    sigma' = (update sigma a unassign) ->
+    sigma' = (update_local sigma a unassign) ->
     (def_nat0 a) -{ sigma }-> sigma' 
 | e_def_int0: forall a sigma sigma',
-    sigma' = (update sigma a unassign) ->
+    sigma' = (update_local sigma a unassign) ->
     (def_int0 a) -{ sigma }-> sigma'  
 | e_def_bool0: forall a sigma sigma',
-    sigma' = (update sigma a unassign ) ->
+    sigma' = (update_local sigma a unassign ) ->
     (def_bool0 a) -{ sigma }-> sigma'
 | e_def_string0: forall a sigma sigma',
-    sigma' = (update sigma a unassign) ->
+    sigma' = (update_local sigma a unassign) ->
     (def_string0 a) -{ sigma }-> sigma'
 | e_def_vector_n: forall s n l sigma sigma',
-    sigma' =(update sigma s (vector(vector_nat n l))) ->
+    sigma' =(update_local sigma s (vector(vector_nat n l))) ->
     def_vector s (vector_nat n l) -{sigma}->sigma'
 | e_def_vector_i: forall s n l sigma sigma',
-    sigma' =(update sigma s (vector(vector_int n l)))->
+    sigma' =(update_local sigma s (vector(vector_int n l)))->
     def_vector s (vector_int n l) -{sigma}->sigma'
 | e_def_vector_b: forall s n l sigma sigma',
-    sigma' =(update sigma s (vector(vector_bool n l)))->
+    sigma' =(update_local sigma s (vector(vector_bool n l)))->
     def_vector s (vector_bool n l) -{sigma}->sigma'
 | e_def_vector_s: forall s n l sigma sigma',
-    sigma' =(update sigma s (vector(vector_str n l)))->
+    sigma' =(update_local sigma s (vector(vector_str n l)))->
     def_vector s (vector_str n l) -{sigma}->sigma'
 | e_assignment: forall a i x sigma sigma',
-    (negb (is_undecl(sigma a)))={ sigma }=> true ->
+    (negb (is_undecl((gl sigma a) a)))= true ->
     i =[sigma]=> x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_envs sigma a x) ->
     (assignment a i) -{ sigma }-> sigma'
 | e_bassignment: forall a i x sigma sigma',
-    (negb (is_undecl(sigma a)))={ sigma }=> true ->
+    (negb (is_undecl(( gl sigma a)a)))= true ->
     i ={sigma}=> x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_envs sigma a x) ->
     (bassignment a i) -{ sigma }-> sigma'
 | e_sassignment: forall a i x sigma sigma',
-    (negb (is_undecl(sigma a)))={ sigma }=> true ->
+    (negb (is_undecl((gl sigma a) a)))= true ->
     i -[sigma]-> x ->
-    sigma' = (update sigma a x) ->
+    sigma' = (update_envs sigma a x) ->
     (sassignment a i) -{ sigma }-> sigma'
 | e_seq : forall s1 s2 sigma sigma' sigma'',
     s1 -{ sigma }-> sigma' ->
@@ -990,59 +1030,60 @@ Inductive eval : Stmt -> Env -> Env -> Prop :=
     v -{ sigma }-> sigma' ->
     switch a (b) -{ sigma }-> sigma'
 | e_strcpy : forall s1 s2 sigma sigma' s2',
-    s2' = sigma s2 ->
-    sigma' = (update sigma s1 s2') ->
+    s2' = (gl sigma s2) s2 ->
+    sigma' = (update_envs sigma s1 s2') ->
     strcpy s1 s2 -{ sigma }-> sigma'
 | e_getfunc : forall s l1 sigma sigma' st sigma'' sigma''' l sigma'''',
-    l = (get_list (sigma s) ) ->
-    sigma'= (lists_parse l l1 sigma sigma) ->
-    st = get_stmt(sigma s) ->
+    l = (get_list ((get_globe sigma) s) ) ->
+    length l = length l1 ->
+    sigma'= (lists_parse_i l l1 sigma (pair (update_env (get_globe envs0) (get_globe sigma)) (get_local envs0))) ->
+    st = get_stmt(get_globe sigma s) ->
     st -{ sigma'}-> sigma'' ->
-    sigma''' = (update_env sigma sigma'') ->
-    sigma'''' =(lists_parse l1 l sigma''' env_loc) ->
-    get_func s l1 -{sigma}-> sigma''''
+    sigma''' =(update_env_g sigma sigma'') ->
+    sigma'''' =(lists_parse_i l1 l sigma'' sigma''') ->
+    get_func s l1 -{sigma}-> sigma'''
 | e_null_stmt : forall sigma,
     nullstmt -{sigma}-> sigma
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
 Reserved Notation "A =| sigma |=> B"(at level 0).
-Inductive Leval : Lang -> Env -> Env -> Prop :=
+Inductive Leval : Lang -> Envs -> Envs -> Prop :=
 | e_funcMain: forall s sigma sigma' sigma'',
-    (is_undecl (sigma "main")) ={sigma}=> true ->
-    sigma' =(update sigma "main" (code nil s)) ->
+    (is_undecl ((get_globe sigma) "main")) = true ->
+    sigma' =(update_global sigma "main" (code nil s)) ->
     s -{sigma'}->sigma'' ->
     (funcMain s) =| sigma |=> sigma''
 | e_funcs: forall s l st sigma sigma',
-    (is_undecl (sigma "main")) ={sigma}=> true->
-    sigma' = (update sigma s (code l st)) ->
+    (is_undecl ((get_globe sigma) "main")) ={sigma}=> true->
+    sigma' = (update_global sigma s (code l st)) ->
     (funcs s l st) =|sigma|=>sigma'
 | e_gdecl_int: forall s i x sigma sigma',
     i=[sigma]=>x ->
-    sigma' = (update sigma s x) ->
+    sigma' = (update_global sigma s x) ->
     (gdecl_int s i) =|sigma|=> sigma'
 | e_gdecl_nat:forall s i x sigma sigma',
     i=[sigma]=>x ->
-    sigma' = (update sigma s x) ->
+    sigma' = (update_global sigma s x) ->
     (gdecl_nat s i) =|sigma|=> sigma'
 | e_gdecl_str:forall s i x sigma sigma',
     i-[sigma]->x ->
-    sigma' = (update sigma s x) ->
+    sigma' = (update_global sigma s x) ->
     (gdecl_str s i) =|sigma|=> sigma'
 | e_gdecl_bool:forall s i x sigma sigma',
     i={sigma}=>x ->
-    sigma' = (update sigma s x) ->
+    sigma' = (update_global sigma s x) ->
     (gdecl_bool s i) =|sigma|=> sigma'
 | e_gdecl_int0:forall s sigma sigma',
-    sigma' = (update sigma s unassign) ->
+    sigma' = (update_global sigma s unassign) ->
     (gdecl_int0 s) =|sigma|=> sigma'
 | e_gdecl_nat0:forall s sigma sigma',
-    sigma' = (update sigma s unassign) ->
+    sigma' = (update_global sigma s unassign) ->
     (gdecl_nat0 s) =|sigma|=> sigma
 | e_gdecl_str0:forall s sigma sigma',
-    sigma' = (update sigma s unassign) ->
+    sigma' = (update_global sigma s unassign) ->
     (gdecl_str0 s) =|sigma|=> sigma
 | e_gdecl_bool0:forall s sigma sigma',
-    sigma' = (update sigma s unassign) ->
+    sigma' = (update_global sigma s unassign) ->
     (gdecl_bool0 s) =|sigma|=> sigma
 | e_secv:forall s1 s2 sigma sigma' sigma'',
     s1 =|sigma|=> sigma' ->
@@ -1127,17 +1168,18 @@ Compute func' "test" (( "text1" ; "text2" )):{
           }.
 
 
-Definition sum1 :=
+Definition alg1 :=
   func' "test" (("abc"; "bcd"; "aac")):{
     "abc" ::= 3;;
-    "bcd" :s:= string("sss") ;;
-    "i" ::= 60
+    "bcd" ::= 40 ;;
+    "aac" ::= 60 ;;
+    "n" ::=55
   } ;;'
+  int' "n" := 1 ;;'
+  int' "x" := 0 ;;'
   func' main():{
-  int "n" := 1 ;;
-  int "i" := 1 ;; 
+  int "i" := 1 ;;
   int "sum" := 0 ;;
-  int "x" := 0 ;;
   If ( "i" <=' "n" ) then {
           "sum" ::= "sum" +' "i" ;;
           "i" ::= "i" +' 1
@@ -1151,9 +1193,48 @@ Definition sum1 :=
     string "aaaa" := strcat("qeq", "eqe")
   }
   end';;
-  -> "test" (("n" ; "sum" ; "i")) ;;
-  switch' ("n"):{
-    case (1): {
+  -> "test" (("n" ; "sum" ; "i"))
+}.
+Check func' "test" (("abc"; "bcd"; "aac")):{
+    "abc" ::= 3;;
+    "bcd" :s:= "sss" 
+  }. 
+Example eval_alg1 :
+  exists state,
+  alg1 =| envs0 |=> state /\ (gl state "n")"n" = 55.
+Proof.
+eexists.
+split.
+  - unfold alg1. eapply e_secv. eapply e_secv. eapply e_secv. 
+  + eapply e_funcs; eauto.  simpl. eapply e_val;eauto.
+  + eapply e_gdecl_int;eauto. eapply const_int.
+  + eapply e_gdecl_int;eauto. eapply const_int.
+  + eapply e_funcMain; eauto. simpl. eapply e_seq.
+    ++ eapply e_seq. eapply e_seq.
+      eapply e_def_int; eauto. eapply const_int.
+      eapply e_def_int; eauto. eapply const_int.
+      eapply e_iftrue2.
+        +++ eapply e_blet; eauto.
+            ++++ eapply var.
+            ++++ eapply var.
+            ++++ trivial. 
+        +++ eapply e_seq. 
+            ++++ eapply e_assignment; eauto. simpl. eapply add; eauto. eapply var. eapply var; eauto. 
+            ++++ eapply e_assignment; eauto.
+               +++++ simpl. eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. trivial.
+    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. 
+    eapply e_seq. eapply e_assignment; eauto. simpl. eapply const_int. eapply e_assignment; 
+    eauto. simpl. eapply const_int. eapply e_assignment; eauto. simpl. eapply const_int. 
+    eapply e_assignment; eauto. eapply const_int. 
+-  simpl. unfold update_env. simpl. unfold update. simpl. reflexivity.
+Qed. 
+Definition alg2 :=
+
+func' main():{
+int "y"[50]={1 ;2 ;3} ;;
+int "a" := ("y"a[0]) ;;
+switch' ("a"):{
+    case (1):{
        If(1=='1) then {nat "AA" := 7} 
         else {int "BB" := 7} end'
     } ;
@@ -1162,49 +1243,30 @@ Definition sum1 :=
     } ;
     default : {bool "3" := true}
   };;
-  int "y"[50]={1 ;2 ;3} ;;
-  int "a" := ("y"a[0]) ;;
   bool "ghi" := (bool)"a" ;;
   do {
   "a"::="a" +' 1
   } while("a"<' 2) ;;
   "ghi" :b:= ("ghi" xor' true)
 }.
-Check func' "test" (("abc"; "bcd"; "aac")):{
-    "abc" ::= 3;;
-    "bcd" :s:= "sss" 
-  }. 
-
-Example eval_sum1 :
+Example eval_alg2 :
   exists state,
-  sum1 =| env_globe |=> state /\ state "y" = vector (vector_int (abs_nat 50) (list_Z_to_list_IntType(cons 1 (cons 2 (cons 3 nil) ) ) ) ) /\ state "a" = 2 /\ state "ghi" = true.
+  alg2 =| envs0 |=> state /\ (gl state "AA")"AA" = 7 /\ (gl state "ghi")"ghi" = false.
 Proof.
 eexists.
 split.
-  - unfold sum1. eapply e_secv. eapply e_funcs; eauto.  trivial.  simpl. eapply e_val;eauto. eapply e_funcMain; eauto. simpl. eapply e_val. eapply e_seq.
-    + eapply e_seq.
-     ++ eapply e_seq. unfold update. simpl.
-        +++ eapply e_seq.
-            ++++ eapply e_seq. eapply e_seq.  eapply e_def_int; eauto. eapply const_int.  
-            eapply e_def_int; eauto. eapply const_int. eapply e_def_int;eauto. eapply const_int.
-            ++++ eapply e_def_int; eauto. eapply const_int.
-        +++ eapply e_iftrue2.
-      eapply e_blet; eauto. eapply var. eapply var. trivial.
-         eapply e_seq. eapply e_assignment; eauto. simpl. eapply e_val. eapply add; eauto.
-         eapply var. eapply var; eauto. eapply e_assignment; eauto. simpl. eapply e_val. 
-        eapply add. eapply var; eauto.  eapply const_int; eauto. trivial. trivial. simpl. 
-        trivial.
-    ++ eapply e_getfunc; eauto. simpl. eapply e_seq; eauto. eapply e_seq; eauto. 
-    eapply e_assignment; eauto. simpl. eapply e_val. eapply const_int. eapply e_sassignment; 
-    eauto. simpl. eapply e_val. eapply s_const. eapply e_assignment; eauto. simpl. eapply e_val.
-     eapply const_int. + unfold update_env. simpl. unfold update. simpl. 
-  eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq; eauto. eapply e_seq. eapply e_seq. 
-  eapply e_switch; eauto. eapply var.  simpl. eapply e_def_bool; eauto. eapply e_val; eauto.
-   eapply e_def_vector_i; eauto. eapply e_def_int; eauto. eapply e_getvval_a; eauto.
-  eapply e_def_bool; eauto. eapply e_tobol. eapply e_dowhile_false; eauto. eapply e_assignment;
-  eauto. simpl. eapply e_val. eapply add; eauto. simpl.  eapply var; eauto. eapply const_int.
-  eapply e_blt; eauto. eapply var; eauto. eapply const_int; eauto. simpl. trivial. 
-  eapply e_bassignment; eauto. simpl. eapply e_val. eapply e_xor_true_ft;eauto. eapply e_var;
-  eauto. eapply e_val;eauto. 
-  - unfold update. simpl. split. reflexivity. split. reflexivity. reflexivity.
-Qed.  
+unfold alg2.
+- eapply e_funcMain; eauto. eapply e_seq. eapply e_seq. eapply e_def_vector_i; eauto.
+eapply e_def_int; eauto. eapply e_getvval_a; eauto. eapply e_seq. eapply e_seq. 
+eapply e_seq. eapply e_switch; eauto. eapply var. unfold list_cases_parse. simpl.
+eapply e_iftrue2. eapply e_beq;eauto. eapply const_int. eapply const_int.
+trivial. eapply e_def_nat;eauto. eapply const_int. eapply e_def_bool;eauto. eapply e_tobol.
+eapply e_dowhile_false;eauto. eapply e_assignment;eauto. simpl. eapply add;eauto. eapply var. eapply const_int.
+eapply e_blt;eauto. eapply var. eapply const_int. simpl. trivial. eapply e_bassignment;eauto.
+eapply e_xor_false; eauto. eapply e_var. simpl.  eapply e_val.
+- simpl. unfold update. simpl. split. trivial. trivial.
+Qed.
+
+
+
+
