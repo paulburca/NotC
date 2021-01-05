@@ -1041,7 +1041,7 @@ Inductive eval : Stmt -> Envs -> Envs -> Prop :=
     st -{ sigma'}-> sigma'' ->
     sigma''' =(update_env_g sigma sigma'') ->
     sigma'''' =(lists_parse_i l1 l sigma'' sigma''') ->
-    get_func s l1 -{sigma}-> sigma'''
+    get_func s l1 -{sigma}-> sigma''''
 | e_null_stmt : forall sigma,
     nullstmt -{sigma}-> sigma
 where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
@@ -1173,7 +1173,7 @@ Definition alg1 :=
     "abc" ::= 3;;
     "bcd" ::= 40 ;;
     "aac" ::= 60 ;;
-    "n" ::=55
+    "x" ::=55
   } ;;'
   int' "n" := 1 ;;'
   int' "x" := 0 ;;'
@@ -1201,7 +1201,7 @@ Check func' "test" (("abc"; "bcd"; "aac")):{
   }. 
 Example eval_alg1 :
   exists state,
-  alg1 =| envs0 |=> state /\ (gl state "n")"n" = 55.
+  alg1 =| envs0 |=> state /\ (gl state "x")"x" = 55.
 Proof.
 eexists.
 split.
