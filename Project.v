@@ -4,6 +4,8 @@ Require Import Coq.ZArith.BinInt.
 Require Import Lists.List.
 Require Export BinNums.
 Require Import BinPos BinNat.
+Require Import Bool.
+Import ListNotations.
 Local Open Scope string_scope.
 Local Open Scope list_scope.
 Local Open Scope Z_scope.
@@ -1085,6 +1087,298 @@ Inductive Leval : Lang -> Envs -> Envs -> Prop :=
     (secv s1 s2) =| sigma |=> sigma''
 where "s =| sigma |=> sigma'" :=(Leval s sigma sigma').
 
+Inductive EXP:=
+| stre : STREXP -> EXP
+| be : BExp -> EXP
+| ae: AExp -> EXP
+.
+Definition interpret_strexp (e : STREXP) (env : Env):string:=
+match e with
+| svar s => s
+| sconst s=> strng s
+| strcat s1 s2=> concat s1 s2
+| get_vval_s v n=> strng (vect_parse n (vect_list_s (env v) ) error_string)
+| to_string s=> strng (env s)
+end.
+Fixpoint interpret_aexp (e : AExp) (env : Env) : Z :=
+match e with
+| avar s => integ (env s)
+| anum n => Z_of_nat (NatType_to_nat n)
+| aint i => IntType_to_Z i
+| aplus a b => interpret_aexp a env + interpret_aexp b env
+| asub a b => interpret_aexp a env - interpret_aexp b env
+| amul a b => interpret_aexp a env * interpret_aexp b env
+| adiv a b => interpret_aexp a env / interpret_aexp b env
+| amod a b => Z.modulo (interpret_aexp a env) (interpret_aexp b env)
+| apow a b =>  Z.pow (interpret_aexp a env) (interpret_aexp b env)
+| to_nat s => integ ( ( natural ( env s) ) ) 
+| to_int s => integ ( env s)
+| get_vval_a v n=> IntType_to_Z (vect_parse n (vect_list_a ( env v) ) error_int )
+| strlen s => Z_of_nat (length_str s)
+end.
+Fixpoint interpret_bexp (e : BExp) (env : Env):=
+match e with
+| btrue => true
+| bfalse => false
+| bvar b => boole(env b) 
+| bval b => boole b
+| blessthan a1 a2 => Z.ltb(interpret_aexp a1 env) (interpret_aexp a2 env)
+| bnot b=> (negb (interpret_bexp b env ) )
+| band a b=> (interpret_bexp a env) && (interpret_bexp b env)
+| bgreaterthan a1 a2=> Z.gtb (interpret_aexp a1 env) (interpret_aexp a2 env)
+| bor a b=> (interpret_bexp a env) || (interpret_bexp b env)
+| bxor a b=> xorb (interpret_bexp a env) (interpret_bexp b env)
+| bxand a b=> negb (xorb (interpret_bexp a env) (interpret_bexp b env) )
+| strcmp s1 s2=> if(string_dec (interpret_strexp s1 env) (interpret_strexp s2 env) ) then true else false
+| blet a b=> Z.leb (interpret_aexp a env) (interpret_aexp b env)
+| bget a b=> Z.geb (interpret_aexp a env) (interpret_aexp b env)
+| beq a b=> Z.eqb (interpret_aexp a env) (interpret_aexp b env)
+| bneq a b=> negb (Z.eqb (interpret_aexp a env) (interpret_aexp b env) )
+| get_vval_b v n => boole ( vect_parse n  (vect_list_b (env v) ) error_bool)
+| to_bool b => boole  (env b)
+end.
+(*Fixpoint interpret_stmt (e : Stmt) (env : Envs) : Envs :=
+match e with
+| def_nat s v => (update env s v)
+| def_bool s v => (update env s v)
+| def_int s v=> (update env s v)
+| def_string s v=> (update env s v)
+| def_nat0 s => (update env s v)
+| def_bool0 s => (update env s unassign)
+| def_int0 s => (update env s unassign)
+| def_string0 s => (update env s unassign)
+| def_vector s v =>(update env s v)
+| assignment s v => (update env s v)
+| bassignment s v=> (update env s v)
+| sassignment s v => (update env s v)
+| sequence s1 s2 => interpret_stmt s2 (interpret_stmt s1 env )
+| ifthen b s => (interpret_stmt s env)
+| ifthenelse b s1 s2 => if(b)then (interpret_stmt s env) else (interpret_stmt s env)
+| For s1 b s2 st=> interpret_stmt forcontent (interpret_stmt s1 env)
+| forcontent b st s=> for(nullstmt;b;s)interpret_stmt st env
+| get_func s l=> interpret_stmt (get_stmt s) env
+| break => env
+| continue  => env
+| switch i l => list_cases_parse
+| read s => env
+| write s => env
+| strcpy s1 s2 => update_envs s1 (env s2)
+| nullstmt => env
+| while b s=> (interpret_stmt s env)
+| dowhile s b=> (interpret_stmt (while b s) (interpret_stmt s env))
+end.
+Fixpoint interpret_lang (e : Lang) (env : Envs) : Envs :=
+match e with
+|funcMain s => interpret_stmt(s, env)
+|funcs s l st => (update_envs env s (code l st)) 
+| gdecl_int s v => (update_envs env s v) 
+| gdecl_nat s v => (update_envs env s v)
+| gdecl_str s v => (update_envs env s v)
+| gdecl_bool s v => (update_envs env s v)
+| gdecl_int0 s =>(update_envs env s unassign)
+| gdecl_nat0 s => (update_envs env s unassign)
+| gdecl_str0 s => (update_envs env s unassign)
+| gdecl_bool0 s => (update_envs env s unassign)
+| secv s1 s2 => (interpret_lang s2 (interpret_lang s1 env) )  
+end.*)
+
+Inductive Instruction :=
+| push_const : Val -> Instruction
+| push_var : string -> Instruction
+| lt : Instruction
+| gt : Instruction
+| leqt: Instruction 
+| geqt: Instruction
+| not: Instruction
+| xand : Instruction
+| xor : Instruction
+| scmp : Instruction
+| and : Instruction
+| or : Instruction
+| eq : Instruction
+| neq : Instruction
+| plus : Instruction
+| sub : Instruction
+| mul : Instruction
+| inm : Instruction
+| modulo : Instruction
+| slen : Instruction
+| power : Instruction
+.
+Definition Stack := list Val.
+
+Definition string_eq (s1 s2:string): bool :=
+if (string_dec s1 s2) then true else false.
+Definition run_instruction (i : Instruction) (env : string -> Val) (stack : Stack) : Stack :=
+  match i with
+  | push_const c => ( c :: stack)
+  | push_var x => ((env x) :: stack)
+  | lt =>match stack with
+           | n1 :: n2 :: stack' => bol (Z.ltb (integ n2) (integ n1)) :: stack'
+           | _ => stack
+           end 
+  | gt => match stack with
+           | n1 :: n2 :: stack' => bol (Z.gtb ( integ n2) ( integ n1)) :: stack'
+           | _ => stack
+           end 
+  | leqt => match stack with
+           | n1 :: n2 :: stack' => bol (Z.leb ( integ n2) ( integ n1)) :: stack'
+           | _ => stack
+           end 
+  | geqt=> match stack with
+           | n1 :: n2 :: stack' => bol (Z.geb ( integ n2) ( integ n1)) :: stack'
+           | _ => stack
+           end 
+  | not =>match stack with
+           |  b :: stack' => bol (negb (boole b) ) :: stack'
+           | _ => stack
+           end
+  | xand =>match stack with
+           |  b1 :: b2 :: stack' => bol (negb (xorb (boole b1) (boole b2))) :: stack'
+           | _ => stack
+           end
+  | xor =>match stack with
+           |  b1 :: b2 :: stack' => bol (xorb (boole b1) (boole b2) ) :: stack'
+           | _ => stack
+           end
+  | scmp =>match stack with
+           |  s1 :: s2 :: stack' => bol (string_eq (strng s1) (strng s2) ) :: stack'
+           | _ => stack
+           end
+  | and =>match stack with
+           | b1 :: b2 :: stack' => bol (andb (boole b1) (boole b2) ) :: stack'
+           | _ => stack
+           end
+  | or =>match stack with
+           | b1 :: b2 :: stack' => bol (orb (boole b1) (boole b2) ) :: stack'
+           | _ => stack
+           end
+  | eq =>match stack with
+           |  b1 :: b2 :: stack' => bol (Z.eqb (integ b1) (integ b2) ) :: stack'
+           | _ => stack
+           end
+  | neq =>match stack with
+           |  b1 :: b2 :: stack' => bol (negb (Z.eqb (integ b1) (integ b2))) :: stack'
+           | _ => stack
+           end
+  | plus =>match stack with
+           |  a1 :: a2 :: stack' => integer ((integ a1) + ( integ a2) ) :: stack'
+           | _ => stack
+           end
+  | sub =>match stack with
+           |  a1 :: a2 :: stack' => integer ((integ a2) - ( integ a1) ) :: stack'
+           | _ => stack
+           end
+  | mul =>match stack with
+           |  a1 :: a2 :: stack' => integer ((integ a2) * ( integ a1) ) :: stack'
+           | _ => stack
+           end
+  | inm =>match stack with
+           |   a1 :: a2 :: stack' => integer ((integ a2) / ( integ a1) ) :: stack'
+           | _ => stack
+           end
+  | modulo =>match stack with
+           |   a1 :: a2 :: stack' => integer (Z.modulo (integ a1) ( integ a2) ) :: stack'
+           | _ => stack
+           end
+  | slen =>match stack with
+           |   s :: stack' => integer (Z_of_nat (length_str (strng s))) :: stack'
+           | _ => stack
+           end
+  |power =>match stack with
+           |  a1 :: a2 :: stack' => integer ((integ a2) ^ ( integ a1) ) :: stack'
+           | _ => stack
+           end
+  end.
+Definition env0 := fun x => if string_dec x "x" then 10 else 0.
+Check env0.
+Compute (run_instruction (push_const 1012) env0 []).
+Compute (run_instruction (push_var "x") env0 []).
+Compute (run_instruction plus env0 [integer 10;integer 12;integer 20]).
+Compute (run_instruction mul env0 [integer 10;integer 12;integer 20]).
+Fixpoint run_instructions (is' : list Instruction)(env : string -> Val) (stack : Stack) : Stack :=
+  match is' with
+  | [] => stack
+  | i :: is'' => run_instructions is'' env (run_instruction i env stack)
+  end.
+
+Definition pgm1 := [
+                    push_const 19 ;
+                    push_var "x" ;
+                    lt
+                  ].
+Compute run_instructions pgm1 env0 [].
+Definition pgm2 := [
+                    push_const 19 ;
+                    push_var "x" ;
+                    plus;
+                    push_var "x";
+                    mul
+                  ].
+Compute run_instructions pgm2 env0 [].
+
+Definition compile_str(e : STREXP) : list Instruction :=
+ match e with
+| svar s' =>[push_var s']
+| sconst s' => [push_const s']
+| strcat s1 s2 => []
+| get_vval_s v n=> []
+| to_string s'=> []
+ end.
+Fixpoint compile_aexp (e: AExp): list Instruction:=
+ match e with 
+| avar a => [push_var a]
+| anum n => [push_const n]
+| aint i => [push_const i]
+| aplus a b => (compile_aexp a) ++ (compile_aexp b) ++ [plus]
+| asub a b => (compile_aexp a) ++ (compile_aexp b) ++ [sub]
+| amul a b =>(compile_aexp a) ++ (compile_aexp b) ++ [mul]
+| adiv a b =>(compile_aexp a) ++ (compile_aexp b) ++ [inm]
+| amod a b =>(compile_aexp a) ++ (compile_aexp b) ++ [modulo]
+| apow a b =>(compile_aexp a) ++ (compile_aexp b) ++ [power]
+| to_nat n=> [] 
+| to_int i=> []
+| get_vval_a v n => []
+| strlen s => (compile_str s) ++ [slen]
+end.
+Fixpoint compile (e : BExp) : list Instruction :=
+  match e with
+| btrue => [push_const true]
+| bfalse => [push_const false]
+| bvar b => [push_var b]
+| bval b => [push_const b]
+| blessthan a b => (compile_aexp a) ++ (compile_aexp b) ++ [lt]
+| bnot b => (compile b) ++ [not]
+| band a b => (compile a) ++ (compile b) ++ [and]
+| bgreaterthan a b=> (compile_aexp a) ++ (compile_aexp b) ++ [gt]
+| bor a b=> (compile a) ++ (compile b) ++ [or]
+| bxor a b=> (compile a) ++ (compile b) ++ [xor]
+| bxand a b=> (compile a) ++ (compile b) ++ [xand]
+| strcmp s1 s2 => (compile_str s1 ) ++ (compile_str  s2) ++ [scmp]
+| blet a b => (compile_aexp a) ++ (compile_aexp b) ++ [leqt]
+| bget a b=> (compile_aexp a) ++ (compile_aexp b) ++ [geqt]
+| beq a b=> (compile_aexp a) ++ (compile_aexp b) ++ [eq]
+| bneq a b=> (compile_aexp a) ++ (compile_aexp b) ++ [neq]
+| get_vval_b v n => []
+| to_bool b => []
+end.
+Compute compile_aexp (2 +' (id "x")).
+Compute compile_aexp (2 +' (id "x") *' 7).
+Compute compile_aexp (2 *' (id "x") +' 7).
+Compute interpret_aexp (2 *' (id "x") +' 7) env0.
+Compute run_instructions
+        (compile_aexp (2 *' (id "x") +' 7))
+        env0
+        [].
+Lemma soundness_helper :
+  forall e env stack is',
+    run_instructions (compile_aexp e ++ is') env stack =
+    run_instructions is' env (integer(interpret_aexp e env) :: stack).
+Proof.
+  induction e; intros; simpl; trivial.
+  - rewrite <- app_assoc.
+    rewrite <- app_assoc.
+
 Notation "X ::= A" := (assignment X A ) (at level 50).
 Notation "X :b:= A" := (bassignment X A ) (at level 50).
 Notation "X :s:= A" := (sassignment X A ) (at level 50).
@@ -1260,3 +1554,6 @@ eapply e_blt;eauto. eapply var. eapply const_int. simpl. trivial. eapply e_bassi
 eapply e_xor_false; eauto. eapply e_var. simpl.  eapply e_val.
 - simpl. unfold update. simpl. split. trivial. trivial.
 Qed.
+
+
+
